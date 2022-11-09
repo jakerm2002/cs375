@@ -120,12 +120,12 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
   variable   : IDENTIFIER { $$ = findid($1); }
              ;
   idlist     : IDENTIFIER COMMA idlist { $$ = cons($1, $3); }
-             | IDENTIFIER { $$ = cons($1, NULL); }
+             | IDENTIFIER { printf("seeing idlist IDENTIFIER \n"); $$ = cons($1, NULL);  }
              ;
-  numlist    : NUMBER COMMA numlist         { /*instlabel($1);*/ }
-             | NUMBER                       { /*instlabel($1); */}
+  numlist    : NUMBER COMMA numlist         { instlabel($1); }
+             | NUMBER                       { instlabel($1); }
              ;
-  lblock     : LABEL numlist SEMICOLON cblock       { /*$$ = $4;*/ }
+  lblock     : LABEL numlist SEMICOLON cblock       {$$ = $4;}
              | cblock
              ;
   cdef       : IDENTIFIER EQ constant { instconst($1, $3); }
@@ -135,14 +135,19 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
   cblock     : CONST cdef_list tblock  { $$ = $3; }
              | tblock
   	  	  	 ;
-  tdef       : IDENTIFIER EQ type        { /*insttype($1, $3);*/ }
+  tdef       : IDENTIFIER EQ type        {insttype($1, $3);}
              ;
   tdef_list  : tdef SEMICOLON tdef_list  { $$ = cons($1, $3); }
              | tdef SEMICOLON            { $$ = $1; }
-  tblock     : TYPE tdef_list vblock     {/*$$ = $3;*/}
+  tblock     : TYPE tdef_list vblock     { $$ = $3; }
              | vblock
   	  	     ;
-  vblock     : VAR varspecs block { $$ = $3; }
+  vdef       : idlist COLON type   { instvars($1, $3); }
+             ;
+  vdef_list  : vdef SEMICOLON vdef_list
+             | vdef SEMICOLON
+             ;
+  vblock     : VAR vdef_list block { $$ = $3; }
              | block
              ;
   varspecs   : vargroup SEMICOLON varspecs
@@ -150,22 +155,22 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
              ;
   vargroup   : idlist COLON type { instvars($1, $3); }
              ;
-  simple_type: IDENTIFIER { $$ = findtype($1); }
-             | LPAREN idlist RPAREN    { /*$$ = instenum($2);*/ }
-             | constant DOTDOT constant  { /*$$ = instdotdot($1, $2, $3);*/ }
+  simple_type: IDENTIFIER { printf("seeing simple_type IDENTIFIER \n"); $$ = findtype($1); }
+             | LPAREN idlist RPAREN    { $$ = instenum($2); }
+             | constant DOTDOT constant  { $$ = instdotdot($1, $2, $3);}
              ;
   simple_type_list : simple_type COMMA simple_type_list        { $$ = cons($1, $3); }
-		           | simple_type
+		           | simple_type                                { $$ = cons($1, NULL); }
 		           ;
   type       : simple_type
-             | ARRAY LBRACKET simple_type_list RBRACKET OF type		{ /*$$ = instarray($3, $6);*/ }
-             | RECORD field_list END           { /* $$ = instrec($1, $2);*/ }
-             | POINT IDENTIFIER                { /*$$ = instpoint($1, $2);*/ }
+             | ARRAY LBRACKET simple_type_list RBRACKET OF type		{ $$ = instarray($3, $6); }
+             | RECORD field_list END           { $$ = instrec($1, $2); }
+             | POINT IDENTIFIER                { $$ = instpoint($1, $2); }
              ;
-  fields     : idlist COLON type
+  fields     : idlist COLON type        { $$ = instfields($1, $3); }
              ;
-  field_list : fields SEMICOLON field_list { /*$$ = instfields($1, $3);*/ }
-             | fields                      { /*$$ = nconc($1, $3);*/ }
+  field_list : fields SEMICOLON field_list { $$ = nconc($1, $3); }
+             | fields                      
              ;
   block      : BEGINBEGIN statement endpart { $$ = makeprogn($1,cons($2, $3)); }
              ;
@@ -191,7 +196,7 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
   unsigned_constant : NUMBER | NIL | STRING
              ;
   constant   : sign IDENTIFIER          { $$ = unaryop($1, $2); }
-             | IDENTIFIER
+             | IDENTIFIER               
              | sign NUMBER              { $$ = unaryop($1, $2); }
              | NUMBER
              | STRING
@@ -206,7 +211,7 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
    are working.
   */
 
-#define DEBUG         0             /* set bits here for debugging, 0 = off  */
+#define DEBUG         32             /* set bits here for debugging, 0 = off  */
 #define DB_CONS       1             /* bit to trace cons */
 #define DB_BINOP      2             /* bit to trace binop */
 #define DB_MAKEIF     4             /* bit to trace makeif */
@@ -214,6 +219,8 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
 #define DB_PARSERES  16             /* bit to trace parseresult */
 
  int labelnumber = 0;  /* sequential counter for internal label numbers */
+
+ int labeltable[100];
 
    /*  Note: you should add to the above values and insert debugging
        printouts in your routines similar to those that are shown here.     */
@@ -264,28 +271,41 @@ TOKEN makeprogn(TOKEN tok, TOKEN statements)
 
 //add da constant to da symbol table
 void  instconst(TOKEN idtok, TOKEN consttok) {
-    //printf("helllo fron instconst\n");
-    SYMBOL sym;
-    sym = insertsym(idtok->stringval);
+    printf("helllo fron instconst\n");
+    SYMBOL sym, typesym;
     
+
+    TOKEN modifyTok;
+
+    if (consttok->tokentype == OPERATOR) {
+		modifyTok = consttok->operands;
+	} else {
+		modifyTok = consttok;
+	}
+    
+    sym = insertsym(idtok->stringval);
     //basic dt is enough and symtype won't matter
     //add the appropriate value
-    if (consttok->tokentype == NUMBERTOK) {
-        if (consttok->basicdt == INTEGER) {
-            sym->constval.intnum = consttok->intval;
+    if (modifyTok->tokentype == STRINGTOK) {
+        typesym = searchst("char");
+        strcpy(sym->constval.stringconst, modifyTok->stringval);
+		sym->basicdt = STRING;
+    } else if (modifyTok->tokentype == NUMBERTOK) {
+        if (modifyTok->basicdt == INTEGER) {
+            typesym = searchst("integer");
+            sym->constval.intnum = modifyTok->intval;
             sym->basicdt = INTEGER;
-        } else if (consttok->basicdt == REAL) {
-            sym->constval.realnum = consttok->realval;
-             sym->basicdt = REAL;
-        } else if (consttok->basicdt == STRINGTYPE){
-            sym->basicdt = STRING;
-            strcpy(sym->constval.stringconst, consttok->stringval);
+        } else if (modifyTok->basicdt == REAL) {
+            typesym = searchst("real");
+            sym->constval.realnum = modifyTok->realval;
+            sym->basicdt = REAL;
         } else {
             yyerror("fail");
         }
     }
     
     sym->kind = CONSTSYM;
+    sym->datatype = typesym;
     //printf("goodbye from instconst\n");
 }
 
@@ -333,6 +353,7 @@ int check_op_simple(TOKEN op) {
 
 TOKEN findid(TOKEN tok) { /* the ID token */
 
+    printf("hey from findid\n");
     SYMBOL sym = searchst(tok->stringval);
 
     if ( sym->kind == CONSTSYM ) {
@@ -476,6 +497,19 @@ TOKEN makerepeat(TOKEN tok, TOKEN statements, TOKEN tokb, TOKEN expr) {
    make them into a single list in a record declaration. */
 /* nconc should return lista, or listb if lista is NULL. */
 TOKEN nconc(TOKEN lista, TOKEN listb) {
+    TOKEN fullist = lista;
+    if (lista==NULL)
+    return lista;
+    else {
+    while(fullist->link) 
+        fullist = fullist->link;
+    fullist->link = listb;
+    }
+
+    if (DEBUG) {
+    printf("nconc\n");
+    }
+    return fullist;
 }
 
 /* fillintc smashes tok, making it into an INTEGER constant with value num */
@@ -497,7 +531,9 @@ TOKEN dogoto(TOKEN tok, TOKEN labeltok);
 TOKEN dolabel(TOKEN labeltok, TOKEN tok, TOKEN statement);
 
 /* instlabel installs a user label into the label table */
-void  instlabel (TOKEN num);
+void  instlabel (TOKEN num) {
+    labeltable[labelnumber++] = num->intval;  
+}
 
 /* settoktype sets up the type fields of token tok.
    typ = type pointer, ent = symbol table entry of the variable  */
@@ -509,34 +545,150 @@ TOKEN makewhile(TOKEN tok, TOKEN expr, TOKEN tokb, TOKEN statement);
 
 /* makesubrange makes a SUBRANGE symbol table entry, puts the pointer to it
    into tok, and returns tok. */
-TOKEN makesubrange(TOKEN tok, int low, int high);
+TOKEN makesubrange(TOKEN tok, int low, int high) {
+    int flag = 0; 
+    if (tok != NULL)
+    flag = 1;
+
+    switch (flag){
+    case 1:{
+        SYMBOL subrange = symalloc();
+        subrange->kind = SUBRANGE;
+        subrange->basicdt = INTEGER;
+        subrange->lowbound = low;
+        subrange->highbound = high;
+        subrange->size = basicsizes[INTEGER];
+        tok->symtype = subrange;
+        return tok;
+    }
+    } 
+
+    if (DEBUG)
+    printf("makesubrange\n");
+}
 
 /* instenum installs an enumerated subrange in the symbol table,
    e.g., type color = (red, white, blue)
    by calling makesubrange and returning the token it returns. */
-TOKEN instenum(TOKEN idlist);
+TOKEN instenum(TOKEN idlist) {
+    int size = 0;
+    TOKEN list = copytok(idlist);
+
+    for (int i=0; list; i++) {
+    instconst(list, makeintc(size));
+    size ++;
+    list = list->link;
+    }
+
+    TOKEN tok = makesubrange(idlist, 0, size - 1);
+    if (DEBUG) 
+    printf("instenum\n");
+
+    return tok;
+}
 
 /* instdotdot installs a .. subrange in the symbol table.
    dottok is a (now) unused token that is recycled. */
-TOKEN instdotdot(TOKEN lowtok, TOKEN dottok, TOKEN hightok);
+TOKEN instdotdot(TOKEN lowtok, TOKEN dottok, TOKEN hightok) {
+    int low = lowtok->intval;
+    int high = hightok->intval;
+    return makesubrange(dottok, low, high);
+}
 
 /* insttype will install a type name in symbol table.
    typetok is a token containing symbol table pointers. */
-void  insttype(TOKEN typename, TOKEN typetok);
+void  insttype(TOKEN typename, TOKEN typetok) {
+    SYMBOL typesym = searchins(typename->stringval);
+    typesym->kind = TYPESYM;
+    typesym->datatype = typetok->symtype;
+    typesym->size = typetok->symtype->size;
+
+    if (DEBUG) {
+        printf("insttype\n");
+    }
+}
 
 /* instpoint will install a pointer type in symbol table */
-TOKEN instpoint(TOKEN tok, TOKEN typename);
+TOKEN instpoint(TOKEN tok, TOKEN typename) {
+    if (tok != NULL){
+    SYMBOL typesym = searchins(typename->stringval);
+    SYMBOL pointsym = symalloc();
+    pointsym->datatype = typesym;
+    pointsym->kind = POINTERSYM;
+    pointsym->size = basicsizes[POINTER];
+    pointsym->basicdt = POINTER;
+
+    tok->symtype = pointsym;
+    } else return NULL;
+
+    if (DEBUG) {
+        printf("install point\n");
+        dbugprinttok(tok);
+    }
+
+    return tok;
+}
 
 /* instrec will install a record definition.  Each token in the linked list
    argstok has a pointer its type.  rectok is just a trash token to be
    used to return the result in its symtype */
-TOKEN instrec(TOKEN rectok, TOKEN argstok);
+TOKEN instrec(TOKEN rectok, TOKEN argstok) {
+    SYMBOL recsym = symalloc();
+    recsym->kind = RECORDSYM;
+    int count, next, align;
+    count = 0; 
+    next =0;
+    SYMBOL prev = NULL;
+    for (int i =0; argstok; i++){
+    align = alignsize(argstok->symtype);
+    SYMBOL recfield = makesym(argstok->stringval);
+    recfield->datatype = argstok->symtype;
+    recfield->offset = wordaddress(next, align);
+    recfield->size = argstok->symtype->size;
+    next = recfield->offset + recfield->size;
+
+        switch(count){
+        case 0: 
+        recsym->datatype = recfield;
+        prev = recfield;
+        break;
+        default:
+        prev->link = recfield;
+        prev = recfield;
+        break;
+        }
+        recfield->link = NULL;
+        count ++;
+        argstok = argstok->link;
+    }
+
+    recsym->size = wordaddress(next, 16); 
+    rectok->symtype = recsym;
+
+    if (DEBUG) {
+        printf("instrect\n");
+    }
+    return rectok;
+}
 
 /* instfields will install type in a list idlist of field name tokens:
    re, im: real    put the pointer to REAL in the RE, IM tokens.
    typetok is a token whose symtype is a symbol table pointer.
    Note that nconc() can be used to combine these lists after instrec() */
-TOKEN instfields(TOKEN idlist, TOKEN typetok);
+TOKEN instfields(TOKEN idlist, TOKEN typetok) {
+    SYMBOL typesym = typetok->symtype;
+    TOKEN temp = idlist;
+    for(int i=0;temp;i++){
+    temp->symtype = typesym;     
+    temp = temp->link;
+    }
+
+    if (DEBUG) {
+        printf("instfields\n");
+    }
+
+    return idlist;
+}
 
 /* makeplus makes a + operator.
    tok (if not NULL) is a (now) unused token that is recycled. */
@@ -572,7 +724,45 @@ TOKEN dopoint(TOKEN var, TOKEN tok);
 /* instarray installs an array declaration into the symbol table.
    bounds points to a SUBRANGE symbol table entry.
    The symbol table pointer is returned in token typetok. */
-TOKEN instarray(TOKEN bounds, TOKEN typetok);
+TOKEN instarray(TOKEN bounds, TOKEN typetok) {
+  int ready = 0; 
+  if (bounds->link)
+    ready = 1; 
+
+  switch (ready) {
+    case 1 : 
+    {
+    typetok = instarray(bounds->link, typetok);
+
+    SYMBOL subrange = bounds->symtype;
+    SYMBOL typesym = typetok->symtype;
+    SYMBOL arraysym = symalloc();
+
+    arraysym->kind = ARRAYSYM;
+    arraysym->datatype = typesym;
+    arraysym->lowbound = subrange->lowbound;
+    arraysym->highbound = subrange->highbound;
+    arraysym->size = (arraysym->lowbound + arraysym->highbound - 1) * (typesym->size);
+    typetok->symtype = arraysym;
+    return typetok;
+    }
+    case 0:
+    {
+    SYMBOL subrange = bounds->symtype;
+    SYMBOL typesym = typetok->symtype;
+    SYMBOL arraysym = symalloc();
+    arraysym->kind = ARRAYSYM;
+    arraysym->datatype = typesym;
+    arraysym->lowbound = subrange->lowbound;
+    arraysym->highbound = subrange->highbound;
+    arraysym->size = (arraysym->highbound - arraysym->lowbound +  1) * (typesym->size);
+    typetok->symtype = arraysym;
+    return typetok;
+    }
+  }
+    if (DEBUG) 
+        printf("instarray\n");
+}
 
 //*********** end of part 3 methods
 
@@ -702,7 +892,7 @@ TOKEN makefor(int sign, TOKEN tok, TOKEN assign, TOKEN tokb, TOKEN expr, TOKEN t
 
 
 TOKEN makeprogram(TOKEN name, TOKEN args, TOKEN statements) {
-
+    printf("running make program\n");
     //token for program
     TOKEN tok = talloc();
     tok->tokentype = OPERATOR;
@@ -761,28 +951,49 @@ TOKEN makeintc(int num) {
 }
 
 TOKEN findtype(TOKEN tok) {
-    //look up type name
-    SYMBOL sym = searchst(tok->stringval);
-    tok->symtype = sym; //put the result in symtype
-    return tok;
+    printf("hello from findtype \n");
+    SYMBOL sym, typ;
+	char error_details[1024];
+	sym = searchst(tok->stringval);
+	if (sym == 0) {	/* print error if symbol not found */
+		sprintf(error_details, "Type %s not found.\n", tok->stringval);
+		yyerror(error_details);
+		return tok;
+	}
+	tok->symentry = sym;	
+	tok->symtype = sym;
+	return tok;
 }
 
 /* install variables in symbol table */
 void instvars(TOKEN idlist, TOKEN typetok) {
+    if (DEBUG) {
+		printf("initializing vars\n");
+        dbugprinttok(idlist);
+		dbugprinttok(typetok);
+	}
+    if (typetok->symtype == 0) {
+		findtype(typetok); /* find type */
+	}
     SYMBOL sym, typesym; int align;
     typesym = typetok->symtype;
+    printf("typesym is %d\n", typesym);
     align = alignsize(typesym);
     while ( idlist != NULL ) /* for each id */ {
         sym = insertsym(idlist->stringval);
         sym->kind = VARSYM;
-        sym->offset = /* "next" */
-        wordaddress(blockoffs[blocknumber],
-        align);
+        sym->offset = wordaddress(blockoffs[blocknumber], align);
         sym->size = typesym->size;
-        blockoffs[blocknumber] = /* "next" */
-        sym->offset + sym->size;
+        blockoffs[blocknumber] = sym->offset + sym->size;
         sym->datatype = typesym;
-        sym->basicdt = typesym->basicdt;
+        
+        if (typetok->symtype->kind == TYPESYM && typetok->symtype->datatype->kind == POINTERSYM) {
+			sym->basicdt = POINTER;
+		} else {
+			sym->basicdt = typetok->symtype->basicdt;
+		}
+       
+        /* sym->basicdt = typesym->basicdt; */
         idlist = idlist->link;
     };
 }
