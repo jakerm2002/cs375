@@ -1,0 +1,60 @@
+%%
+
+program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parseresult = makeprogram($2, $4, $7); }
+             ;
+  statement  :  BEGINBEGIN statement endpart   { printf("AAAA!!\n"); $$ = makeprogn($1,cons($2, $3)); }
+             |  IF expr THEN statement endif   { printf("AAAAAAAAAAAA!!\n"); $$ = makeif($1, $2, $4, $5); }
+             |  FOR {printf("seeing FOR\n");} assignment TO {printf("done with TO.\n");} expr DO {printf("done with DO.\n");} statement	{printf("done with FOR.\n");}{ $$ = makefor(1, $1, $2, $3, $4, $5, $6); printf("hey fucker\n"); }
+             |  assignment                     { printf("seeing statement!!\n"); }
+             |  funcall                         { printf("funcall done.\n"); }
+             ;
+  endpart    :  SEMICOLON {printf("saw semicolon\n");} statement endpart    { $$ = cons($2, $3); }
+             |  END                            { $$ = NULL; }
+             ;
+  endif      :  ELSE statement                 { $$ = $2; }
+             |  /* empty */                    { $$ = NULL; }  %prec thenthen
+             ;
+  assignment :  variable ASSIGN expr           { $$ = binop($2, $1, $3); printf("binop done.\n");}
+             ;
+  expr       :  expr PLUS term                 { $$ = binop($2, $1, $3); }
+             |  term 
+             ;
+  term       :  term TIMES factor              { $$ = binop($2, $1, $3); }
+             |  factor
+             ;
+  factor     :  LPAREN expr RPAREN             { $$ = $2; }
+             |  variable
+             |  NUMBER
+             |  STRING
+             ;
+  variable   : IDENTIFIER  { $$ = findid($1); }
+             ;
+  idlist    : IDENTIFIER COMMA idlist { $$ = cons($1, $3); }
+             | IDENTIFIER { $$ = cons($1, NULL); }
+             ;
+  lblock     :  cblock
+             ;
+  cblock     :  tblock
+  	  	  	 ;
+  tblock     :  vblock
+  	  	     ;
+  vblock     : VAR varspecs block { $$ = $3; }
+             | block
+             ;
+  varspecs   : vargroup SEMICOLON varspecs
+             | vargroup SEMICOLON
+             ;
+  vargroup   : idlist COLON type { instvars($1, $3); }
+             ;
+  type       : simpletype
+             ;
+  simpletype : IDENTIFIER { $$ = findtype($1); }
+             ; /* $1->symtype returns type */
+  block      : BEGINBEGIN { printf("seeing block!!\n");} statement { printf("done w statement\n");} endpart { printf("finished block!!\n"); $$ = makeprogn($1,cons($2, $3)); }
+             ;
+  funcall    : IDENTIFIER {printf("seeting indenfitier in the funcall\n");} LPAREN {printf("lparen funcall\n");} expr_list RPAREN {printf("rparen funcall\n");} {printf("HEY FUCKER\n");}{/*execute function*/}
+             ;
+  expr_list  : expr COMMA expr_list            { $$ = cons($1, $3); }
+             | expr 
+             ;
+%%

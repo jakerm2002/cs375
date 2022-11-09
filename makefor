@@ -1,0 +1,41 @@
+TOKEN makefor(int sign, TOKEN tok, TOKEN asg, TOKEN tokb, TOKEN endexpr,
+              TOKEN tokc, TOKEN statement) {
+    printf("hello from makefor\n");
+    int cur_labelnumber = labelnumber;
+	TOKEN label_tok = makelabel();
+	TOKEN goto_tok = makegoto(cur_labelnumber); 
+	/* copy assignment operator for use in multiple situations */
+    printf("hello from makefor 1.5\n");
+	TOKEN assign_var = copytok(asg->operands);
+
+    
+    TOKEN assign_var1 = copytok(asg->operands);
+    TOKEN assign_var2 = copytok(asg->operands);
+    printf("hello from makefor 2\n");
+    TOKEN end_check_tok = 0;
+    TOKEN tok_increment = 0;
+    TOKEN tok_var_incr = 0;
+    /* Build the termination condition */
+    printf("hello from makefor 3\n");
+    if (sign == 1) { /* to */
+        end_check_tok = makeop(LEOP);
+        tok_increment = makeop(PLUSOP);
+    } else { /* downto */
+        end_check_tok = makeop(GEOP);
+        tok_increment = makeop(MINUSOP);
+    }
+    printf("hello from makefor 4\n");
+    end_check_tok = binop(end_check_tok, assign_var, endexpr); /* build final termination condition */
+    fillintc(tokb, 1);
+    binop(tok_increment, assign_var1, tokb);
+    tok_var_incr = makeop(ASSIGNOP);
+    binop(tok_var_incr, assign_var2, tok_increment); /* building the increment */
+    cons(statement, cons(tok_var_incr, goto_tok)); 
+    makeprogn(tokc, statement);
+    tok = makeif(tok, end_check_tok, tokc, 0); /* Build if condition */
+    /* build using cons to create final tree */
+    cons(label_tok, tok);
+    cons(asg, label_tok);  
+    return makeprogn(talloc(), asg);
+    
+}

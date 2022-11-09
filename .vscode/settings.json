@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "ratio": "c",
+        "random": "c",
+        "cmath": "c",
+        "complex": "c",
+        "parsesep30": "c"
+    }
+}
