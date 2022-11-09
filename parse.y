@@ -118,6 +118,10 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
              |  LPAREN expr RPAREN             { $$ = $2; }
              ;
   variable   : IDENTIFIER { $$ = findid($1); }
+             |  variable LBRACKET expr_list RBRACKET   { /*$$ = arrayref($1, $2, $3, $4);*/ }
+             |  variable DOT IDENTIFIER                { /*$$ = reducedot($1, $2, $3);*/ }
+             |  variable POINT                         { /*$$ = dopoint($1, $2);*/ }
+             ;
              ;
   idlist     : IDENTIFIER COMMA idlist { $$ = cons($1, $3); }
              | IDENTIFIER { printf("seeing idlist IDENTIFIER \n"); $$ = cons($1, NULL);  }
@@ -706,20 +710,144 @@ TOKEN mulint(TOKEN exp, int n);
 /* makearef makes an array reference operation.
    off is be an integer constant token
    tok (if not NULL) is a (now) unused token that is recycled. */
-TOKEN makearef(TOKEN var, TOKEN off, TOKEN tok);
+TOKEN makearef(TOKEN var, TOKEN off, TOKEN tok) {
+    int flag = 0;
+    if (tok != NULL){ 
+    if (var->whichval == AREFOP)
+    flag = 1; 
+    switch (flag){
+    case 1:
+    {
+        TOKEN plusop = makeop(PLUSOP);
+        TOKEN oldoff = var->operands->link;
+        oldoff->link = off;
+        plusop->operands = oldoff;
+        var->operands->link = plusop;
+        var->basicdt = var->symentry->basicdt;
+        return var;
+    }
+    }     
+
+    TOKEN areftok = makeop(AREFOP);
+    var->link = off;
+    areftok->operands = var;
+    areftok->symentry = var->symentry; 
+    areftok->basicdt = var->symentry->basicdt;  
+
+    if (DEBUG) 
+        printf("makearef\n");
+    return areftok;
+    }
+}
 
 /* reducedot handles a record reference.
    dot is a (now) unused token that is recycled. */
-TOKEN reducedot(TOKEN var, TOKEN dot, TOKEN field);
+TOKEN reducedot(TOKEN var, TOKEN dot, TOKEN field) {
+    printf("yo from reducedot\n");
+    dbugprinttok(var);
+    dbugprinttok(dot);
+    dbugprinttok(field);
+    SYMBOL record = var->symentry;
+    printf("reducedot okay\n");
+    SYMBOL curfield = record->datatype->datatype;
+    int offset = 0;
+    int off;
+    printf("reducedot okay\n");
+    while(curfield) {
+        if (strcmp(curfield->namestring, field->stringval) == 0)
+            off = 0; 
+        else off = 1; 
+        switch(off){
+            case 0: 
+            offset = curfield->offset;
+            var->symentry = curfield;
+            break;
+
+            case 1: 
+            curfield = curfield->link;
+            break;
+        }
+        if (off==0)
+            break;
+    }
+    
+    printf("reducedot okay\n");
+    dot = makearef(var, makeintc(offset), dot);
+
+    if (DEBUG) {
+        printf("reducedot\n");
+    }
+    return dot;
+}
 
 /* arrayref processes an array reference a[i]
    subs is a list of subscript expressions.
    tok and tokb are (now) unused tokens that are recycled. */
-TOKEN arrayref(TOKEN arr, TOKEN tok, TOKEN subs, TOKEN tokb);
+TOKEN arrayref(TOKEN arr, TOKEN tok, TOKEN subs, TOKEN tokb) {
+    int flag = 0;
+    if (subs->link) 
+    flag = 1; 
+
+    switch (flag){
+    case 1:
+    {
+    TOKEN timesop = makeop(TIMESOP);
+    int low = arr->symtype->lowbound;
+    int high = arr->symtype->highbound;
+    int size = (arr->symtype->size / (high + low - 1));
+
+    TOKEN s = copytok(subs);
+    s->link = NULL;
+    TOKEN elesize = makeintc(size);
+    elesize->link = s;
+    timesop->operands = elesize;
+
+    TOKEN nsize = makeintc(-1 * size);
+    nsize->link = timesop;
+    TOKEN plusop = makeop(PLUSOP);
+    plusop->operands = nsize;
+
+    TOKEN subarref = makearef(arr, plusop, tokb);
+
+    subarref->symtype = arr->symtype->datatype;
+
+    return arrayref(subarref, tok, subs->link, tokb);
+    }  
+    default:
+    {
+    TOKEN timesop = makeop(TIMESOP);
+    int low = arr->symtype->lowbound;
+    int high = arr->symtype->highbound;
+    int size = (arr->symtype->size / (high + low - 1));
+
+    TOKEN elesize = makeintc(size);
+    elesize->link = subs;
+    timesop->operands = elesize;
+
+    TOKEN nsize = makeintc(-1 * size);
+    nsize->link = timesop;
+    TOKEN plusop = makeop(PLUSOP);
+    plusop->operands = nsize;
+    return makearef(arr, plusop, tokb);
+    }
+    }
+
+    if (DEBUG) 
+    printf("arrayref\n");
+}
 
 /* dopoint handles a ^ operator.  john^ becomes (^ john) with type record
    tok is a (now) unused token that is recycled. */
-TOKEN dopoint(TOKEN var, TOKEN tok);
+TOKEN dopoint(TOKEN var, TOKEN tok) {
+    tok->symentry = var->symentry->datatype->datatype;
+    tok->operands = var;
+
+    if (DEBUG) {
+        printf("dopoint\n");
+    }
+
+    return tok;
+}
 
 /* instarray installs an array declaration into the symbol table.
    bounds points to a SUBRANGE symbol table entry.
@@ -967,33 +1095,18 @@ TOKEN findtype(TOKEN tok) {
 
 /* install variables in symbol table */
 void instvars(TOKEN idlist, TOKEN typetok) {
-    if (DEBUG) {
-		printf("initializing vars\n");
-        dbugprinttok(idlist);
-		dbugprinttok(typetok);
-	}
-    if (typetok->symtype == 0) {
-		findtype(typetok); /* find type */
-	}
-    SYMBOL sym, typesym; int align;
-    typesym = typetok->symtype;
-    printf("typesym is %d\n", typesym);
-    align = alignsize(typesym);
-    while ( idlist != NULL ) /* for each id */ {
+    int align;
+    SYMBOL type, sym; 
+    type = typetok->symtype;
+    align = alignsize(type);
+    while (idlist != NULL)  {  
         sym = insertsym(idlist->stringval);
-        sym->kind = VARSYM;
-        sym->offset = wordaddress(blockoffs[blocknumber], align);
-        sym->size = typesym->size;
+        sym->kind = VARSYM; 
+        sym->offset = wordaddress(blockoffs[blocknumber],align);
+        sym->size = type->size;
         blockoffs[blocknumber] = sym->offset + sym->size;
-        sym->datatype = typesym;
-        
-        if (typetok->symtype->kind == TYPESYM && typetok->symtype->datatype->kind == POINTERSYM) {
-			sym->basicdt = POINTER;
-		} else {
-			sym->basicdt = typetok->symtype->basicdt;
-		}
-       
-        /* sym->basicdt = typesym->basicdt; */
+        sym->datatype = type;
+        sym->basicdt = type->basicdt;
         idlist = idlist->link;
     };
 }
