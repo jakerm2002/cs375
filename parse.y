@@ -102,7 +102,7 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
              |  END                            { $$ = NULL; }
              ;
   endif      :  ELSE statement                 { $$ = $2; }
-             |  /* empty */                    { $$ = NULL; }  %prec thenthen
+             |  /* empty */                    { $$ = NULL; }  %prec thenthen //what is this for?
              ;
   assignment :  variable ASSIGN expr           { $$ = binop($2, $1, $3); }
              ;
@@ -116,6 +116,7 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
              |  variable
              |  funcall
              |  LPAREN expr RPAREN             { $$ = $2; }
+             |  NOT factor { $$ = unaryop($1, $2); }
              ;
   variable   : IDENTIFIER { $$ = findid($1); }
              |  variable LBRACKET expr_list RBRACKET   { /*$$ = arrayref($1, $2, $3, $4);*/ }
@@ -141,8 +142,8 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
   	  	  	 ;
   tdef       : IDENTIFIER EQ type        {insttype($1, $3);}
              ;
-  tdef_list  : tdef SEMICOLON tdef_list  { $$ = cons($1, $3); }
-             | tdef SEMICOLON            { $$ = $1; }
+  tdef_list  : tdef SEMICOLON tdef_list  { /*$$ = cons($1, $3);*/ }
+             | tdef SEMICOLON            { /*$$ = $1;*/ }
   tblock     : TYPE tdef_list vblock     { $$ = $3; }
              | vblock
   	  	     ;
@@ -195,7 +196,7 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
              ;
   times_op   : TIMES | DIVIDE | DIV | MOD | AND
              ;
-  label      : NUMBER COLON statement
+  label      : NUMBER COLON statement           { $$ = dolabel($1, $2, $3); }
              ;
   unsigned_constant : NUMBER | NIL | STRING
              ;
@@ -532,7 +533,33 @@ TOKEN dogoto(TOKEN tok, TOKEN labeltok);
 
 /* dolabel is the action for a label of the form   <number>: <statement>
    tok is a (now) unused token that is recycled. */
-TOKEN dolabel(TOKEN labeltok, TOKEN tok, TOKEN statement);
+TOKEN dolabel(TOKEN labeltok, TOKEN tok, TOKEN statement) {
+        //finding label number
+    int i=0; 
+    int found = 0; 
+    int labelnum;
+    while(i < labelnumber){
+      if (labeltable[i] == labeltok->intval){
+        labelnum = i; 
+        found = 1;
+      }
+      i++;
+    }
+    if (found==0)
+      printf("Error");
+
+    labeltok = makeop(LABELOP);
+    TOKEN tokb = makeintc(labelnum);
+    labeltok->operands=tokb;
+    labeltok->link = statement;
+    tok = makeprogn(tok, labeltok);
+
+    if (DEBUG) {
+      printf("dolabel\n");
+    }
+
+    return tok;
+}
 
 /* instlabel installs a user label into the label table */
 void  instlabel (TOKEN num) {
@@ -907,24 +934,54 @@ TOKEN instarray(TOKEN bounds, TOKEN typetok) {
    tok is a (now) unused token that is recycled. */
 
 TOKEN makefuncall(TOKEN tok, TOKEN fn, TOKEN args) {
-    SYMBOL sym = searchst(fn->stringval);
-    if (sym->kind == FUNCTIONSYM) {
-        //printf("EXECUTING!!!!\n");
-        /* tok->basicdt = sym->datatype->basicdt; */
-        fn->basicdt = sym->datatype->basicdt;
+    int func; 
+    if (strcmp(fn->stringval, "new") == 0)
+        func = 0; 
+    else if (strcmp(fn->stringval, "writeln") == 0)
+        func = 1; 
+    else func = 2;
+
+    switch(func)
+    {
+        case 0: 
+        tok = makeop(ASSIGNOP);
+        tok->operands = args;
+
+        SYMBOL typsym = args->symtype;
+        typsym = typsym->datatype;
+
+        TOKEN funcal = talloc();
+        funcal->tokentype = OPERATOR;
+        funcal->whichval = FUNCALLOP;
+        funcal->operands = fn;
+        fn->link = makeintc(typsym->size);
+        args->link = funcal;
+
+        break; 
+
+        case 1: 
+        if (args->basicdt == REAL) 
+            strcpy(fn->stringval, "writelnf");
+        if (args->tokentype == STRINGTOK) 
+            strcpy(fn->stringval, "writeln");
+        else strcpy(fn->stringval, "writelni");
+        tok->tokentype = OPERATOR;
+        tok->whichval = FUNCALLOP;
+        tok->operands = fn;
+        fn->link=args; 
+        break; 
+
+        case 2: 
+        tok->tokentype = OPERATOR;
+        tok->whichval = FUNCALLOP;
+        tok->operands = fn;
+        fn->link=args;
     }
 
-    tok->tokentype = OPERATOR;
-    tok->operands = fn;
-    tok->whichval = FUNCALLOP;
-    fn->link = args;
-    
-    if(DEBUG){
-        printf("makefuncall\n");
-        dbugprinttok(fn);
-        dbugprinttok(args);
+    if (DEBUG) {
+            printf("makefuncall\n");
     }
-	return tok;
+    return tok;
 }
 
 
