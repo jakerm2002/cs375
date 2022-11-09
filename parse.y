@@ -91,7 +91,8 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
              |  assignment
              |  funcall
              |  FOR assignment TO expr DO statement { $$ = makefor(1, $1, $2, $3, $4, $5, $6); }
-             |  GOTO NUMBER
+             |  WHILE expr DO statement         { /*$$ = makewhile($1, $2, $3, $4);*/ }
+             |  GOTO NUMBER                     { /*$$ = dogoto($1, $2);*/ }
              |  label
              ;
   statement_list : statement SEMICOLON statement_list   { $$ = cons($1, $3); }
@@ -121,7 +122,11 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
   idlist     : IDENTIFIER COMMA idlist { $$ = cons($1, $3); }
              | IDENTIFIER { $$ = cons($1, NULL); }
              ;
-  lblock     : cblock
+  numlist    : NUMBER COMMA numlist         { /*instlabel($1);*/ }
+             | NUMBER                       { /*instlabel($1); */}
+             ;
+  lblock     : LABEL numlist SEMICOLON cblock       { /*$$ = $4;*/ }
+             | cblock
              ;
   cdef       : IDENTIFIER EQ constant { instconst($1, $3); }
              ;
@@ -130,7 +135,12 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
   cblock     : CONST cdef_list tblock  { $$ = $3; }
              | tblock
   	  	  	 ;
-  tblock     : vblock
+  tdef       : IDENTIFIER EQ type        { /*insttype($1, $3);*/ }
+             ;
+  tdef_list  : tdef SEMICOLON tdef_list  { $$ = cons($1, $3); }
+             | tdef SEMICOLON            { $$ = $1; }
+  tblock     : TYPE tdef_list vblock     {/*$$ = $3;*/}
+             | vblock
   	  	     ;
   vblock     : VAR varspecs block { $$ = $3; }
              | block
@@ -140,7 +150,22 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
              ;
   vargroup   : idlist COLON type { instvars($1, $3); }
              ;
-  type       : IDENTIFIER { $$ = findtype($1); }
+  simple_type: IDENTIFIER { $$ = findtype($1); }
+             | LPAREN idlist RPAREN    { /*$$ = instenum($2);*/ }
+             | constant DOTDOT constant  { /*$$ = instdotdot($1, $2, $3);*/ }
+             ;
+  simple_type_list : simple_type COMMA simple_type_list        { $$ = cons($1, $3); }
+		           | simple_type
+		           ;
+  type       : simple_type
+             | ARRAY LBRACKET simple_type_list RBRACKET OF type		{ /*$$ = instarray($3, $6);*/ }
+             | RECORD field_list END           { /* $$ = instrec($1, $2);*/ }
+             | POINT IDENTIFIER                { /*$$ = instpoint($1, $2);*/ }
+             ;
+  fields     : idlist COLON type
+             ;
+  field_list : fields SEMICOLON field_list { /*$$ = instfields($1, $3);*/ }
+             | fields                      { /*$$ = nconc($1, $3);*/ }
              ;
   block      : BEGINBEGIN statement endpart { $$ = makeprogn($1,cons($2, $3)); }
              ;
