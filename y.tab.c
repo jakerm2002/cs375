@@ -1821,20 +1821,26 @@ yyreduce:
 #line 1822 "y.tab.c" /* yacc.c:1646  */
     break;
 
+  case 91:
+#line 201 "parse.y" /* yacc.c:1646  */
+    { (yyval) = makeintc(0); }
+#line 1828 "y.tab.c" /* yacc.c:1646  */
+    break;
+
   case 93:
 #line 203 "parse.y" /* yacc.c:1646  */
     { (yyval) = unaryop((yyvsp[-1]), (yyvsp[0])); }
-#line 1828 "y.tab.c" /* yacc.c:1646  */
+#line 1834 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 95:
 #line 205 "parse.y" /* yacc.c:1646  */
     { (yyval) = unaryop((yyvsp[-1]), (yyvsp[0])); }
-#line 1834 "y.tab.c" /* yacc.c:1646  */
+#line 1840 "y.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 1838 "y.tab.c" /* yacc.c:1646  */
+#line 1844 "y.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires

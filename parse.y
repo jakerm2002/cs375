@@ -198,7 +198,7 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
              ;
   label      : NUMBER COLON statement           { $$ = dolabel($1, $2, $3); }
              ;
-  unsigned_constant : NUMBER | NIL | STRING
+  unsigned_constant : NUMBER | NIL { $$ = makeintc(0); } | STRING
              ;
   constant   : sign IDENTIFIER          { $$ = unaryop($1, $2); }
              | IDENTIFIER               
