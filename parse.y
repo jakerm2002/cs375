@@ -121,7 +121,7 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
   variable   : IDENTIFIER { $$ = findid($1); }
              |  variable LBRACKET expr_list RBRACKET   { $$ = arrayref($1, $2, $3, $4); }
              |  variable DOT IDENTIFIER                { $$ = reducedot($1, $2, $3); }
-             |  variable POINT                         { /*$$ = dopoint($1, $2);*/ }
+             |  variable POINT                         { $$ = dopoint($1, $2); }
              ;
              ;
   idlist     : IDENTIFIER COMMA idlist { $$ = cons($1, $3); }
@@ -1176,18 +1176,25 @@ TOKEN makeintc(int num) {
 }
 
 TOKEN findtype(TOKEN tok) {
-    printf("hello from findtype \n");
-    SYMBOL sym, typ;
-	char error_details[1024];
-	sym = searchst(tok->stringval);
-	if (sym == 0) {	/* print error if symbol not found */
-		sprintf(error_details, "Type %s not found.\n", tok->stringval);
-		yyerror(error_details);
-		return tok;
-	}
-	tok->symentry = sym;	
-	tok->symtype = sym;
-	return tok;
+    SYMBOL sym = searchst(tok->stringval);
+
+    switch(sym->kind){
+       case TYPESYM:
+       sym = sym->datatype;
+       break;
+
+       case BASICTYPE:
+       tok->symtype = sym; 
+       tok->basicdt = sym->basicdt; 
+    }
+  
+   tok->symtype = sym;
+    if (DEBUG) {
+      printf("fin\n");
+      dbugprinttok(tok);
+    }
+
+    return tok;
 }
 
 /* install variables in symbol table */

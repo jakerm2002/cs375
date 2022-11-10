@@ -1643,7 +1643,7 @@ yyreduce:
 
   case 31:
 #line 124 "parse.y" /* yacc.c:1646  */
-    { /*$$ = dopoint($1, $2);*/ }
+    { (yyval) = dopoint((yyvsp[-1]), (yyvsp[0])); }
 #line 1648 "y.tab.c" /* yacc.c:1646  */
     break;
 
@@ -3032,18 +3032,25 @@ TOKEN makeintc(int num) {
 }
 
 TOKEN findtype(TOKEN tok) {
-    printf("hello from findtype \n");
-    SYMBOL sym, typ;
-	char error_details[1024];
-	sym = searchst(tok->stringval);
-	if (sym == 0) {	/* print error if symbol not found */
-		sprintf(error_details, "Type %s not found.\n", tok->stringval);
-		yyerror(error_details);
-		return tok;
-	}
-	tok->symentry = sym;	
-	tok->symtype = sym;
-	return tok;
+    SYMBOL sym = searchst(tok->stringval);
+
+    switch(sym->kind){
+       case TYPESYM:
+       sym = sym->datatype;
+       break;
+
+       case BASICTYPE:
+       tok->symtype = sym; 
+       tok->basicdt = sym->basicdt; 
+    }
+  
+   tok->symtype = sym;
+    if (DEBUG) {
+      printf("fin\n");
+      dbugprinttok(tok);
+    }
+
+    return tok;
 }
 
 /* install variables in symbol table */
