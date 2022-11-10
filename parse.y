@@ -711,56 +711,42 @@ TOKEN reducedot(TOKEN var, TOKEN dot, TOKEN field) {
    subs is a list of subscript expressions.
    tok and tokb are (now) unused tokens that are recycled. */
 TOKEN arrayref(TOKEN arr, TOKEN tok, TOKEN subs, TOKEN tokb) {
-    int flag = 0;
-    if (subs->link) 
-    flag = 1; 
+    if (subs->link) {
+        TOKEN timesop = makeop(TIMESOP);
+        int low = arr->symtype->lowbound;
+        int high = arr->symtype->highbound;
+        int size = (arr->symtype->size / (high + low - 1));
+        TOKEN subsToken = copytok(subs);
+        subsToken->link = NULL;
+        TOKEN sizeElementToken = makeintc(size);
+        sizeElementToken->link = subsToken;
+        timesop->operands = sizeElementToken;
+        TOKEN newSizeToken = makeintc(-1 * size);
+        newSizeToken->link = timesop;
+        TOKEN plusop = makeop(PLUSOP);
+        plusop->operands = newSizeToken;
+        TOKEN subarref = makearef(arr, plusop, tokb);
+        subarref->symtype = arr->symtype->datatype;
+        return arrayref(subarref, tok, subs->link, tokb);
+    } else {
+        TOKEN timesop = makeop(TIMESOP);
+        int low = arr->symtype->lowbound;
+        int high = arr->symtype->highbound;
+        int size = (arr->symtype->size / (high + low - 1));
 
-    switch (flag){
-    case 1:
-    {
-    TOKEN timesop = makeop(TIMESOP);
-    int low = arr->symtype->lowbound;
-    int high = arr->symtype->highbound;
-    int size = (arr->symtype->size / (high + low - 1));
+        TOKEN sizeElementToken = makeintc(size);
+        sizeElementToken->link = subs;
+        timesop->operands = sizeElementToken;
 
-    TOKEN s = copytok(subs);
-    s->link = NULL;
-    TOKEN elesize = makeintc(size);
-    elesize->link = s;
-    timesop->operands = elesize;
-
-    TOKEN nsize = makeintc(-1 * size);
-    nsize->link = timesop;
-    TOKEN plusop = makeop(PLUSOP);
-    plusop->operands = nsize;
-
-    TOKEN subarref = makearef(arr, plusop, tokb);
-
-    subarref->symtype = arr->symtype->datatype;
-
-    return arrayref(subarref, tok, subs->link, tokb);
-    }  
-    default:
-    {
-    TOKEN timesop = makeop(TIMESOP);
-    int low = arr->symtype->lowbound;
-    int high = arr->symtype->highbound;
-    int size = (arr->symtype->size / (high + low - 1));
-
-    TOKEN elesize = makeintc(size);
-    elesize->link = subs;
-    timesop->operands = elesize;
-
-    TOKEN nsize = makeintc(-1 * size);
-    nsize->link = timesop;
-    TOKEN plusop = makeop(PLUSOP);
-    plusop->operands = nsize;
-    return makearef(arr, plusop, tokb);
+        TOKEN newSizeToken = makeintc(size * -1);
+        newSizeToken->link = timesop;
+        TOKEN plusop = makeop(PLUSOP);
+        plusop->operands = newSizeToken;
+        return makearef(arr, plusop, tokb);
     }
+    if (DEBUG) {
+        printf("arrayref\n");
     }
-
-    if (DEBUG) 
-    printf("arrayref\n");
 }
 
 /* dopoint handles a ^ operator.  john^ becomes (^ john) with type record
