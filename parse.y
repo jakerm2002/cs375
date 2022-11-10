@@ -84,111 +84,105 @@ TOKEN parseresult;
 
 program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parseresult = makeprogram($2, $4, $7); }
              ;
-  statement  :  BEGINBEGIN statement endpart
-                                       { $$ = makeprogn($1,cons($2, $3)); }
-             |  IF expr THEN statement endif   { $$ = makeif($1, $2, $4, $5); }
-             |  REPEAT statement_list UNTIL expr    {$$ = makerepeat($1, $2, $3, $4); }
+  statement  :  BEGINBEGIN statement endpart                                    { $$ = makeprogn($1,cons($2, $3)); }
+             |  IF expr THEN statement endif                                    { $$ = makeif($1, $2, $4, $5); }
+             |  REPEAT statement_list UNTIL expr                                {$$ = makerepeat($1, $2, $3, $4); }
              |  assignment
              |  funcall
-             |  FOR assignment TO expr DO statement { $$ = makefor(1, $1, $2, $3, $4, $5, $6); }
-             |  WHILE expr DO statement         { $$ = makewhile($1, $2, $3, $4); }
-             |  GOTO NUMBER                     { $$ = dogoto($1, $2); }
+             |  FOR assignment TO expr DO statement                             { $$ = makefor(1, $1, $2, $3, $4, $5, $6); }
+             |  WHILE expr DO statement                                         { $$ = makewhile($1, $2, $3, $4); }
+             |  GOTO NUMBER                                                     { $$ = dogoto($1, $2); }
              |  label
              ;
-  statement_list : statement SEMICOLON statement_list   { $$ = cons($1, $3); }
+  statement_list : statement SEMICOLON statement_list                           { $$ = cons($1, $3); }
              | statement
              ;
-  endpart    :  SEMICOLON statement endpart    { $$ = cons($2, $3); }
-             |  END                            { $$ = NULL; }
+  endpart    :  SEMICOLON statement endpart                                     { $$ = cons($2, $3); }
+             |  END                                                             { $$ = NULL; }
              ;
-  endif      :  ELSE statement                 { $$ = $2; }
-             |  /* empty */                    { $$ = NULL; }  %prec thenthen //what is this for?
+  endif      :  ELSE statement                                                  { $$ = $2; }
+             |  /* empty */                                                     { $$ = NULL; }  %prec thenthen
              ;
-  assignment :  variable ASSIGN expr           { $$ = binop($2, $1, $3); }
+  assignment :  variable ASSIGN expr                                            { $$ = binop($2, $1, $3); }
              ;
-  expr       :  expr compare_op simple_expression                 { $$ = binop($2, $1, $3); }
+  expr       :  expr compare_op simple_expression                               { $$ = binop($2, $1, $3); }
              |  simple_expression 
              ;
-  term       :  term times_op factor              { $$ = binop($2, $1, $3); }
+  term       :  term times_op factor                                            { $$ = binop($2, $1, $3); }
              |  factor
              ;
   factor     :  unsigned_constant
              |  variable
              |  funcall
-             |  LPAREN expr RPAREN             { $$ = $2; }
-             |  NOT factor { $$ = unaryop($1, $2); }
+             |  LPAREN expr RPAREN                                              { $$ = $2; }
+             |  NOT factor                                                      { $$ = unaryop($1, $2); }
              ;
-  variable   : IDENTIFIER { $$ = findid($1); }
-             |  variable LBRACKET expr_list RBRACKET   { $$ = arrayref($1, $2, $3, $4); }
-             |  variable DOT IDENTIFIER                { $$ = reducedot($1, $2, $3); }
-             |  variable POINT                         { $$ = dopoint($1, $2); }
+  variable   : IDENTIFIER                                                       { $$ = findid($1); }
+             |  variable LBRACKET expr_list RBRACKET                            { $$ = arrayref($1, $2, $3, $4); }
+             |  variable DOT IDENTIFIER                                         { $$ = reducedot($1, $2, $3); }
+             |  variable POINT                                                  { $$ = dopoint($1, $2); }
              ;
              ;
-  idlist     : IDENTIFIER COMMA idlist { $$ = cons($1, $3); }
-             | IDENTIFIER { printf("seeing idlist IDENTIFIER \n"); $$ = cons($1, NULL);  }
+  idlist     : IDENTIFIER COMMA idlist                                          { $$ = cons($1, $3); }
+             | IDENTIFIER                                                       { $$ = cons($1, NULL); }
              ;
-  numlist    : NUMBER COMMA numlist         { instlabel($1); }
-             | NUMBER                       { instlabel($1); }
+  numlist    : NUMBER COMMA numlist                                             { instlabel($1); }
+             | NUMBER                                                           { instlabel($1); }
              ;
-  lblock     : LABEL numlist SEMICOLON cblock       {$$ = $4;}
+  lblock     : LABEL numlist SEMICOLON cblock                                   { $$ = $4; }
              | cblock
              ;
-  cdef       : IDENTIFIER EQ constant { instconst($1, $3); }
+  cdef       : IDENTIFIER EQ constant                                           { instconst($1, $3); }
              ;
   cdef_list  : cdef SEMICOLON cdef_list
              | cdef SEMICOLON
-  cblock     : CONST cdef_list tblock  { $$ = $3; }
+  cblock     : CONST cdef_list tblock                                           { $$ = $3; }
              | tblock
   	  	  	 ;
-  tdef       : IDENTIFIER EQ type        {insttype($1, $3);}
+  tdef       : IDENTIFIER EQ type                                               { insttype($1, $3); }
              ;
-  tdef_list  : tdef SEMICOLON tdef_list  { /*$$ = cons($1, $3);*/ }
-             | tdef SEMICOLON            { /*$$ = $1;*/ }
-  tblock     : TYPE tdef_list vblock     { $$ = $3; }
+  tdef_list  : tdef SEMICOLON tdef_list 
+             | tdef SEMICOLON     
+  tblock     : TYPE tdef_list vblock                                            { $$ = $3; }
              | vblock
   	  	     ;
-  vdef       : idlist COLON type   { instvars($1, $3); }
+  vdef       : idlist COLON type                                                { instvars($1, $3); }
              ;
   vdef_list  : vdef SEMICOLON vdef_list
              | vdef SEMICOLON
              ;
-  vblock     : VAR vdef_list block { $$ = $3; }
+  vblock     : VAR vdef_list block                                              { $$ = $3; }
              | block
              ;
-  varspecs   : vargroup SEMICOLON varspecs
-             | vargroup SEMICOLON
+  simple_type: IDENTIFIER                                                       { $$ = findtype($1); }
+             | LPAREN idlist RPAREN                                             { $$ = instenum($2); }
+             | constant DOTDOT constant                                         { $$ = instdotdot($1, $2, $3);}
              ;
-  vargroup   : idlist COLON type { instvars($1, $3); }
-             ;
-  simple_type: IDENTIFIER { printf("seeing simple_type IDENTIFIER \n"); $$ = findtype($1); }
-             | LPAREN idlist RPAREN    { $$ = instenum($2); }
-             | constant DOTDOT constant  { $$ = instdotdot($1, $2, $3);}
-             ;
-  simple_type_list : simple_type COMMA simple_type_list        { $$ = cons($1, $3); }
-		           | simple_type                                { $$ = cons($1, NULL); }
-		           ;
+  simple_type_list : simple_type COMMA simple_type_list                         { $$ = cons($1, $3); }
+		     | simple_type                                                      { $$ = cons($1, NULL); }
+		     ;
   type       : simple_type
-             | ARRAY LBRACKET simple_type_list RBRACKET OF type		{ $$ = instarray($3, $6); }
-             | RECORD field_list END           { $$ = instrec($1, $2); }
-             | POINT IDENTIFIER                { $$ = instpoint($1, $2); }
+             | ARRAY LBRACKET simple_type_list RBRACKET OF type		            { $$ = instarray($3, $6); }
+             | RECORD field_list END                                            { $$ = instrec($1, $2); }
+             | POINT IDENTIFIER                                                 { $$ = instpoint($1, $2); }
              ;
-  fields     : idlist COLON type        { $$ = instfields($1, $3); }
+  fields     : idlist COLON type                                                { $$ = instfields($1, $3); }
              ;
-  field_list : fields SEMICOLON field_list { $$ = nconc($1, $3); }
+  field_list : fields SEMICOLON field_list                                      { $$ = nconc($1, $3); }
              | fields                      
              ;
-  block      : BEGINBEGIN statement endpart { $$ = makeprogn($1,cons($2, $3)); }
+  block      : BEGINBEGIN statement endpart                                     { $$ = makeprogn($1,cons($2, $3)); }
              ;
-  funcall    : IDENTIFIER LPAREN expr_list RPAREN  { $$ = makefuncall($2, $1, $3); }
+  funcall    : IDENTIFIER LPAREN expr_list RPAREN                               { $$ = makefuncall($2, $1, $3); }
              ;
-  expr_list  : expr COMMA expr_list            { $$ = cons($1, $3); }
+  expr_list  : expr COMMA expr_list                                             { $$ = cons($1, $3); }
              | expr 
              ;
   compare_op : EQ | LT | GT | NE | LE | GE | IN
              ;
-  simple_expression : sign term                 { $$ = unaryop($1, $2); }
+  simple_expression : sign term                                                 { $$ = unaryop($1, $2); }
              | term
-             | simple_expression plus_op term   { $$ = binop($2, $1, $3); }
+             | simple_expression plus_op term                                   { $$ = binop($2, $1, $3); }
              ;
   sign       : PLUS | MINUS
              ;
@@ -196,13 +190,15 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
              ;
   times_op   : TIMES | DIVIDE | DIV | MOD | AND
              ;
-  label      : NUMBER COLON statement           { $$ = dolabel($1, $2, $3); }
+  label      : NUMBER COLON statement                                           { $$ = dolabel($1, $2, $3); }
              ;
-  unsigned_constant : NUMBER | NIL { $$ = makeintc(0); } | STRING
+  unsigned_constant : NUMBER 
+             | NIL                                                              { $$ = makeintc(0); } 
+             | STRING
              ;
-  constant   : sign IDENTIFIER          { $$ = unaryop($1, $2); }
-             | IDENTIFIER               
-             | sign NUMBER              { $$ = unaryop($1, $2); }
+  constant   : sign IDENTIFIER                                                  { $$ = unaryop($1, $2); }
+             | IDENTIFIER
+             | sign NUMBER                                                      { $$ = unaryop($1, $2); }
              | NUMBER
              | STRING
              ;
@@ -276,42 +272,36 @@ TOKEN makeprogn(TOKEN tok, TOKEN statements)
 
 //add da constant to da symbol table
 void  instconst(TOKEN idtok, TOKEN consttok) {
-    printf("helllo fron instconst\n");
-    SYMBOL sym, typesym;
-    
-
-    TOKEN modifyTok;
+    SYMBOL sym, type;
+    TOKEN tokToCopy;
 
     if (consttok->tokentype == OPERATOR) {
-		modifyTok = consttok->operands;
+		tokToCopy = consttok->operands;
 	} else {
-		modifyTok = consttok;
+		tokToCopy = consttok;
 	}
-    
+    //add in symtype
     sym = insertsym(idtok->stringval);
-    //basic dt is enough and symtype won't matter
-    //add the appropriate value
-    if (modifyTok->tokentype == STRINGTOK) {
-        typesym = searchst("char");
-        strcpy(sym->constval.stringconst, modifyTok->stringval);
-		sym->basicdt = STRING;
-    } else if (modifyTok->tokentype == NUMBERTOK) {
-        if (modifyTok->basicdt == INTEGER) {
-            typesym = searchst("integer");
-            sym->constval.intnum = modifyTok->intval;
+    if (tokToCopy->tokentype == NUMBERTOK) {
+        if (tokToCopy->basicdt == INTEGER) {
             sym->basicdt = INTEGER;
-        } else if (modifyTok->basicdt == REAL) {
-            typesym = searchst("real");
-            sym->constval.realnum = modifyTok->realval;
+            type = searchst("integer");
+            sym->constval.intnum = tokToCopy->intval;
+        } else if (tokToCopy->basicdt == REAL) {
             sym->basicdt = REAL;
+            type = searchst("real");
+            sym->constval.realnum = tokToCopy->realval;
         } else {
             yyerror("fail");
         }
+    } else if (tokToCopy->tokentype == STRINGTOK) {
+        type = searchst("char");
+        sym->basicdt = STRING;
+        strcpy(sym->constval.stringconst, tokToCopy->stringval);
     }
-    
+
+    sym->datatype = type;
     sym->kind = CONSTSYM;
-    sym->datatype = typesym;
-    //printf("goodbye from instconst\n");
 }
 
 
