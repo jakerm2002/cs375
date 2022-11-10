@@ -646,11 +646,11 @@ TOKEN instrec(TOKEN rectok, TOKEN argstok) {
    typetok is a token whose symtype is a symbol table pointer.
    Note that nconc() can be used to combine these lists after instrec() */
 TOKEN instfields(TOKEN idlist, TOKEN typetok) {
-    SYMBOL typesym = typetok->symtype;
-    TOKEN temp = idlist;
-    for(int i = 0; temp; i++){
-    temp->symtype = typesym;     
-    temp = temp->link;
+    TOKEN tok = idlist;
+    SYMBOL typeSymbol = typetok->symtype;
+    for (int i = 0; tok; i++) {
+        tok->symtype = typeSymbol;     
+        tok = tok->link;
     }
     if (DEBUG) {
         printf("instfields\n");
