@@ -2606,13 +2606,11 @@ TOKEN arrayref(TOKEN arr, TOKEN tok, TOKEN subs, TOKEN tokb) {
 /* dopoint handles a ^ operator.  john^ becomes (^ john) with type record
    tok is a (now) unused token that is recycled. */
 TOKEN dopoint(TOKEN var, TOKEN tok) {
-    tok->symentry = var->symentry->datatype->datatype;
     tok->operands = var;
-
+    tok->symentry = var->symentry->datatype->datatype;
     if (DEBUG) {
         printf("dopoint\n");
     }
-
     return tok;
 }
 
@@ -2621,53 +2619,36 @@ TOKEN dopoint(TOKEN var, TOKEN tok) {
    The symbol table pointer is returned in token typetok. */
 TOKEN instarray(TOKEN bounds, TOKEN typetok) {
   int ready = 0; 
-  if (bounds->link)
-    ready = 1; 
-
-  switch (ready) {
-    case 1 : 
-    {
+  if (bounds->link) {
     typetok = instarray(bounds->link, typetok);
 
-    SYMBOL subrange = bounds->symtype;
-    SYMBOL typesym = typetok->symtype;
-    SYMBOL arraysym = symalloc();
+    SYMBOL symbolSubRange = bounds->symtype;
+    SYMBOL typeSymbol = typetok->symtype;
+    SYMBOL arraySymbol = symalloc();
 
-    arraysym->kind = ARRAYSYM;
-    arraysym->datatype = typesym;
-    arraysym->lowbound = subrange->lowbound;
-    arraysym->highbound = subrange->highbound;
-    arraysym->size = (arraysym->lowbound + arraysym->highbound - 1) * (typesym->size);
-    typetok->symtype = arraysym;
+    arraySymbol->kind = ARRAYSYM;
+    arraySymbol->datatype = typeSymbol;
+    arraySymbol->lowbound = symbolSubRange->lowbound;
+    arraySymbol->highbound = symbolSubRange->highbound;
+    arraySymbol->size = (arraySymbol->lowbound + arraySymbol->highbound - 1) * (typeSymbol->size);
+    typetok->symtype = arraySymbol;
     return typetok;
-    }
-    case 0:
-    {
-    SYMBOL subrange = bounds->symtype;
-    SYMBOL typesym = typetok->symtype;
-    SYMBOL arraysym = symalloc();
-    arraysym->kind = ARRAYSYM;
-    arraysym->datatype = typesym;
-    arraysym->lowbound = subrange->lowbound;
-    arraysym->highbound = subrange->highbound;
-    arraysym->size = (arraysym->highbound - arraysym->lowbound +  1) * (typesym->size);
-    typetok->symtype = arraysym;
+  } else {
+    SYMBOL symbolSubRange = bounds->symtype;
+    SYMBOL typeSymbol = typetok->symtype;
+    SYMBOL arraySymbol = symalloc();
+    arraySymbol->kind = ARRAYSYM;
+    arraySymbol->datatype = typeSymbol;
+    arraySymbol->lowbound = symbolSubRange->lowbound;
+    arraySymbol->highbound = symbolSubRange->highbound;
+    arraySymbol->size = (arraySymbol->highbound - arraySymbol->lowbound +  1) * (typeSymbol->size);
+    typetok->symtype = arraySymbol;
     return typetok;
-    }
   }
-    if (DEBUG) 
+    if (DEBUG) {
         printf("instarray\n");
+    }
 }
-
-//*********** end of part 3 methods
-
-
-
-
-
-
-
-
 
 
 /* makefuncall makes a FUNCALL operator and links it to the fn and args.
