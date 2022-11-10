@@ -764,33 +764,19 @@ TOKEN dopoint(TOKEN var, TOKEN tok) {
    bounds points to a SUBRANGE symbol table entry.
    The symbol table pointer is returned in token typetok. */
 TOKEN instarray(TOKEN bounds, TOKEN typetok) {
-  int ready = 0; 
-  if (bounds->link) {
-    typetok = instarray(bounds->link, typetok);
-
+    if (bounds->link) {
+        typetok = instarray(bounds->link, typetok);
+    }
     SYMBOL symbolSubRange = bounds->symtype;
     SYMBOL typeSymbol = typetok->symtype;
     SYMBOL arraySymbol = symalloc();
-
+    arraySymbol->highbound = symbolSubRange->highbound;
+    arraySymbol->lowbound = symbolSubRange->lowbound;
     arraySymbol->kind = ARRAYSYM;
     arraySymbol->datatype = typeSymbol;
-    arraySymbol->lowbound = symbolSubRange->lowbound;
-    arraySymbol->highbound = symbolSubRange->highbound;
-    arraySymbol->size = (arraySymbol->lowbound + arraySymbol->highbound - 1) * (typeSymbol->size);
-    typetok->symtype = arraySymbol;
-    return typetok;
-  } else {
-    SYMBOL symbolSubRange = bounds->symtype;
-    SYMBOL typeSymbol = typetok->symtype;
-    SYMBOL arraySymbol = symalloc();
-    arraySymbol->kind = ARRAYSYM;
-    arraySymbol->datatype = typeSymbol;
-    arraySymbol->lowbound = symbolSubRange->lowbound;
-    arraySymbol->highbound = symbolSubRange->highbound;
     arraySymbol->size = (arraySymbol->highbound - arraySymbol->lowbound +  1) * (typeSymbol->size);
     typetok->symtype = arraySymbol;
     return typetok;
-  }
     if (DEBUG) {
         printf("instarray\n");
     }
@@ -801,52 +787,40 @@ TOKEN instarray(TOKEN bounds, TOKEN typetok) {
    tok is a (now) unused token that is recycled. */
 
 TOKEN makefuncall(TOKEN tok, TOKEN fn, TOKEN args) {
-    int func; 
-    if (strcmp(fn->stringval, "new") == 0)
-        func = 0; 
-    else if (strcmp(fn->stringval, "writeln") == 0)
-        func = 1; 
-    else func = 2;
-
-    switch(func)
-    {
-        case 0: 
+    if (strcmp(fn->stringval, "new") == 0) {
         tok = makeop(ASSIGNOP);
         tok->operands = args;
-
-        SYMBOL typsym = args->symtype;
-        typsym = typsym->datatype;
-
-        TOKEN funcal = talloc();
-        funcal->tokentype = OPERATOR;
-        funcal->whichval = FUNCALLOP;
-        funcal->operands = fn;
-        fn->link = makeintc(typsym->size);
-        args->link = funcal;
-
-        break; 
-
-        case 1: 
-        if (args->basicdt == REAL) 
+        SYMBOL typeSymbol = args->symtype;
+        typeSymbol = typeSymbol->datatype;
+        TOKEN functionCallToken = talloc();
+        functionCallToken->tokentype = OPERATOR;
+        functionCallToken->whichval = FUNCALLOP;
+        functionCallToken->operands = fn;
+        fn->link = makeintc(typeSymbol->size);
+        args->link = functionCallToken;
+    }
+    else if (strcmp(fn->stringval, "writeln") == 0) {
+        if (args->basicdt == REAL) {
             strcpy(fn->stringval, "writelnf");
-        if (args->tokentype == STRINGTOK) 
+        }
+        if (args->tokentype == STRINGTOK) {
             strcpy(fn->stringval, "writeln");
-        else strcpy(fn->stringval, "writelni");
-        tok->tokentype = OPERATOR;
+        } else {
+            strcpy(fn->stringval, "writelni");
+        }
         tok->whichval = FUNCALLOP;
         tok->operands = fn;
+        tok->tokentype = OPERATOR;
         fn->link=args; 
-        break; 
-
-        case 2: 
+    }
+    else {
         tok->tokentype = OPERATOR;
         tok->whichval = FUNCALLOP;
         tok->operands = fn;
         fn->link=args;
     }
-
     if (DEBUG) {
-            printf("makefuncall\n");
+        printf("makefuncall\n");
     }
     return tok;
 }
