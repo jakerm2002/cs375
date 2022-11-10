@@ -2463,38 +2463,32 @@ TOKEN instpoint(TOKEN tok, TOKEN typename) {
    argstok has a pointer its type.  rectok is just a trash token to be
    used to return the result in its symtype */
 TOKEN instrec(TOKEN rectok, TOKEN argstok) {
-    SYMBOL recsym = symalloc();
-    recsym->kind = RECORDSYM;
-    int count, next, align;
-    count = 0; 
-    next =0;
+    SYMBOL recordSymbol = symalloc();
+    int count = 0; 
+    int next = 0;
+    int align;
+    recordSymbol->kind = RECORDSYM;
     SYMBOL prev = NULL;
-    for (int i =0; argstok; i++){
-    align = alignsize(argstok->symtype);
-    SYMBOL recfield = makesym(argstok->stringval);
-    recfield->datatype = argstok->symtype;
-    recfield->offset = wordaddress(next, align);
-    recfield->size = argstok->symtype->size;
-    next = recfield->offset + recfield->size;
-
-        switch(count){
-        case 0: 
-        recsym->datatype = recfield;
-        prev = recfield;
-        break;
-        default:
-        prev->link = recfield;
-        prev = recfield;
-        break;
+    for (int i = 0; argstok; i++){
+        align = alignsize(argstok->symtype);
+        SYMBOL currentRecordField = makesym(argstok->stringval);
+        currentRecordField->datatype = argstok->symtype;
+        currentRecordField->size = currentRecordField->datatype->size;
+        currentRecordField->offset = wordaddress(next, align);
+        next = currentRecordField->offset + currentRecordField->size;
+        if (count == 0) {
+            recordSymbol->datatype = currentRecordField;
+            prev = currentRecordField;
+        } else {
+            prev->link = currentRecordField;
+            prev = currentRecordField;
         }
-        recfield->link = NULL;
-        count ++;
+        count++;
         argstok = argstok->link;
+        currentRecordField->link = NULL;
     }
-
-    recsym->size = wordaddress(next, 16); 
-    rectok->symtype = recsym;
-
+    recordSymbol->size = wordaddress(next, 16); 
+    rectok->symtype = recordSymbol;
     if (DEBUG) {
         printf("instrect\n");
     }
@@ -2508,15 +2502,13 @@ TOKEN instrec(TOKEN rectok, TOKEN argstok) {
 TOKEN instfields(TOKEN idlist, TOKEN typetok) {
     SYMBOL typesym = typetok->symtype;
     TOKEN temp = idlist;
-    for(int i=0;temp;i++){
+    for(int i = 0; temp; i++){
     temp->symtype = typesym;     
     temp = temp->link;
     }
-
     if (DEBUG) {
         printf("instfields\n");
     }
-
     return idlist;
 }
 
