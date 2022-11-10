@@ -221,7 +221,7 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
 
  int labelnumber = 0;  /* sequential counter for internal label numbers */
 
- int labeltable[100];
+ int labels[100];
 
    /*  Note: you should add to the above values and insert debugging
        printouts in your routines similar to those that are shown here.     */
@@ -467,7 +467,7 @@ TOKEN dogoto(TOKEN tok, TOKEN labeltok) {
     int currentLabelNumber;
     int i = 0;
     while (i < labelnumber) {
-      if (labeltable[i] == labeltok->intval) {
+      if (labels[i] == labeltok->intval) {
         currentLabelNumber = i; 
       }
       i++;
@@ -479,39 +479,31 @@ TOKEN dogoto(TOKEN tok, TOKEN labeltok) {
     return tok;
 }
 
-/* dolabel is the action for a label of the form   <number>: <statement>
-   tok is a (now) unused token that is recycled. */
+// action for label
+// basically the same as goto
 TOKEN dolabel(TOKEN labeltok, TOKEN tok, TOKEN statement) {
-        //finding label number
-    int i=0; 
-    int found = 0; 
-    int labelnum;
-    while(i < labelnumber){
-      if (labeltable[i] == labeltok->intval){
-        labelnum = i; 
-        found = 1;
+    int i = 0;
+    int currentLabelNumber;
+    while (i < labelnumber) {
+      if (labels[i] == labeltok->intval) {
+        currentLabelNumber = i; 
       }
       i++;
     }
-    if (found==0)
-      printf("Error");
-
+    TOKEN intTok = makeintc(currentLabelNumber);
     labeltok = makeop(LABELOP);
-    TOKEN tokb = makeintc(labelnum);
-    labeltok->operands=tokb;
+    labeltok->operands = intTok;
     labeltok->link = statement;
     tok = makeprogn(tok, labeltok);
-
     if (DEBUG) {
       printf("dolabel\n");
     }
-
     return tok;
 }
 
 /* instlabel installs a user label into the label table */
-void  instlabel (TOKEN num) {
-    labeltable[labelnumber++] = num->intval;  
+void instlabel (TOKEN num) {
+    labels[labelnumber++] = num->intval;  
 }
 
 /* settoktype sets up the type fields of token tok.
