@@ -2512,50 +2512,31 @@ TOKEN instfields(TOKEN idlist, TOKEN typetok) {
     return idlist;
 }
 
-/* makeplus makes a + operator.
-   tok (if not NULL) is a (now) unused token that is recycled. */
-TOKEN makeplus(TOKEN lhs, TOKEN rhs, TOKEN tok);
-
-/* addint adds integer off to expression exp, possibly using tok */
-TOKEN addint(TOKEN exp, TOKEN off, TOKEN tok);
-
-/* addoffs adds offset, off, to an aref expression, exp */
-TOKEN addoffs(TOKEN exp, TOKEN off);
-
-/* mulint multiplies expression exp by integer n */
-TOKEN mulint(TOKEN exp, int n);
-
 /* makearef makes an array reference operation.
    off is be an integer constant token
    tok (if not NULL) is a (now) unused token that is recycled. */
 TOKEN makearef(TOKEN var, TOKEN off, TOKEN tok) {
     int flag = 0;
-    if (tok != NULL){ 
-    if (var->whichval == AREFOP)
-    flag = 1; 
-    switch (flag){
-    case 1:
-    {
-        TOKEN plusop = makeop(PLUSOP);
-        TOKEN oldoff = var->operands->link;
-        oldoff->link = off;
-        plusop->operands = oldoff;
-        var->operands->link = plusop;
-        var->basicdt = var->symentry->basicdt;
-        return var;
-    }
-    }     
-
-    TOKEN areftok = makeop(AREFOP);
+    if (tok != NULL) { 
+        if (var->whichval == AREFOP) {
+            TOKEN plusToken = makeop(PLUSOP);
+            TOKEN temp = var->operands->link;
+            temp->link = off;
+            plusToken->operands = temp;
+            var->operands->link = plusToken;
+            var->basicdt = var->symentry->basicdt;
+            return var;
+        }
+    } 
+    TOKEN arefToken = makeop(AREFOP);
     var->link = off;
-    areftok->operands = var;
-    areftok->symentry = var->symentry; 
-    areftok->basicdt = var->symentry->basicdt;  
-
-    if (DEBUG) 
+    arefToken->operands = var;
+    arefToken->symentry = var->symentry; 
+    arefToken->basicdt = arefToken->symentry->basicdt; 
+    if (DEBUG) {
         printf("makearef\n");
-    return areftok;
     }
+    return arefToken;
 }
 
 /* reducedot handles a record reference.
