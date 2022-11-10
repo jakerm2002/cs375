@@ -91,8 +91,8 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
              |  assignment
              |  funcall
              |  FOR assignment TO expr DO statement { $$ = makefor(1, $1, $2, $3, $4, $5, $6); }
-             |  WHILE expr DO statement         { /*$$ = makewhile($1, $2, $3, $4);*/ }
-             |  GOTO NUMBER                     { /*$$ = dogoto($1, $2);*/ }
+             |  WHILE expr DO statement         { $$ = makewhile($1, $2, $3, $4); }
+             |  GOTO NUMBER                     { $$ = dogoto($1, $2); }
              |  label
              ;
   statement_list : statement SEMICOLON statement_list   { $$ = cons($1, $3); }
@@ -119,8 +119,8 @@ program : PROGRAM IDENTIFIER LPAREN idlist RPAREN SEMICOLON lblock DOT { parsere
              |  NOT factor { $$ = unaryop($1, $2); }
              ;
   variable   : IDENTIFIER { $$ = findid($1); }
-             |  variable LBRACKET expr_list RBRACKET   { /*$$ = arrayref($1, $2, $3, $4);*/ }
-             |  variable DOT IDENTIFIER                { /*$$ = reducedot($1, $2, $3);*/ }
+             |  variable LBRACKET expr_list RBRACKET   { $$ = arrayref($1, $2, $3, $4); }
+             |  variable DOT IDENTIFIER                { $$ = reducedot($1, $2, $3); }
              |  variable POINT                         { /*$$ = dopoint($1, $2);*/ }
              ;
              ;
@@ -529,7 +529,26 @@ TOKEN appendst(TOKEN statements, TOKEN more) {
 
 /* dogoto is the action for a goto statement.
    tok is a (now) unused token that is recycled. */
-TOKEN dogoto(TOKEN tok, TOKEN labeltok);
+TOKEN dogoto(TOKEN tok, TOKEN labeltok) {
+    int i=0; 
+    int found = 0; 
+    int labelnum;
+    while(i < labelnumber){
+      if (labeltable[i] == labeltok->intval){
+        labelnum = i; 
+        found = 1;
+      }
+      i++;
+    }
+    if (found==0)
+      printf("Error");
+
+    tok = makegoto(labelnum);
+    if (DEBUG)
+      printf("dogoto\n");
+
+    return tok;
+}
 
 /* dolabel is the action for a label of the form   <number>: <statement>
    tok is a (now) unused token that is recycled. */
@@ -572,7 +591,28 @@ void  settoktype(TOKEN tok, SYMBOL typ, SYMBOL ent);
 
 /* makewhile makes structures for a while statement.
    tok and tokb are (now) unused tokens that are recycled. */
-TOKEN makewhile(TOKEN tok, TOKEN expr, TOKEN tokb, TOKEN statement);
+TOKEN makewhile(TOKEN tok, TOKEN expr, TOKEN tokb, TOKEN statement) {
+    if (tok != NULL){
+    TOKEN label = makelabel();
+    int currentlabel = labelnumber - 1;
+    tok = makeprogn(tok, label);
+
+    TOKEN gototok = makegoto(currentlabel);
+    statement->link = gototok;
+    TOKEN bodytok = makeprogn(tokb, statement);
+
+    TOKEN iftok = talloc();
+    iftok = makeif(iftok, expr, bodytok, NULL);
+    label->link = iftok;
+
+    if (DEBUG) {
+        printf("makewhile\n");
+        dbugprinttok(tok);
+    }
+    return tok;
+
+    } else return NULL;
+}
 
 /* makesubrange makes a SUBRANGE symbol table entry, puts the pointer to it
    into tok, and returns tok. */

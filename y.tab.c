@@ -1553,13 +1553,13 @@ yyreduce:
 
   case 9:
 #line 94 "parse.y" /* yacc.c:1646  */
-    { /*$$ = makewhile($1, $2, $3, $4);*/ }
+    { (yyval) = makewhile((yyvsp[-3]), (yyvsp[-2]), (yyvsp[-1]), (yyvsp[0])); }
 #line 1558 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 10:
 #line 95 "parse.y" /* yacc.c:1646  */
-    { /*$$ = dogoto($1, $2);*/ }
+    { (yyval) = dogoto((yyvsp[-1]), (yyvsp[0])); }
 #line 1564 "y.tab.c" /* yacc.c:1646  */
     break;
 
@@ -1631,13 +1631,13 @@ yyreduce:
 
   case 29:
 #line 122 "parse.y" /* yacc.c:1646  */
-    { /*$$ = arrayref($1, $2, $3, $4);*/ }
+    { (yyval) = arrayref((yyvsp[-3]), (yyvsp[-2]), (yyvsp[-1]), (yyvsp[0])); }
 #line 1636 "y.tab.c" /* yacc.c:1646  */
     break;
 
   case 30:
 #line 123 "parse.y" /* yacc.c:1646  */
-    { /*$$ = reducedot($1, $2, $3);*/ }
+    { (yyval) = reducedot((yyvsp[-2]), (yyvsp[-1]), (yyvsp[0])); }
 #line 1642 "y.tab.c" /* yacc.c:1646  */
     break;
 
@@ -2385,7 +2385,26 @@ TOKEN appendst(TOKEN statements, TOKEN more) {
 
 /* dogoto is the action for a goto statement.
    tok is a (now) unused token that is recycled. */
-TOKEN dogoto(TOKEN tok, TOKEN labeltok);
+TOKEN dogoto(TOKEN tok, TOKEN labeltok) {
+    int i=0; 
+    int found = 0; 
+    int labelnum;
+    while(i < labelnumber){
+      if (labeltable[i] == labeltok->intval){
+        labelnum = i; 
+        found = 1;
+      }
+      i++;
+    }
+    if (found==0)
+      printf("Error");
+
+    tok = makegoto(labelnum);
+    if (DEBUG)
+      printf("dogoto\n");
+
+    return tok;
+}
 
 /* dolabel is the action for a label of the form   <number>: <statement>
    tok is a (now) unused token that is recycled. */
@@ -2428,7 +2447,28 @@ void  settoktype(TOKEN tok, SYMBOL typ, SYMBOL ent);
 
 /* makewhile makes structures for a while statement.
    tok and tokb are (now) unused tokens that are recycled. */
-TOKEN makewhile(TOKEN tok, TOKEN expr, TOKEN tokb, TOKEN statement);
+TOKEN makewhile(TOKEN tok, TOKEN expr, TOKEN tokb, TOKEN statement) {
+    if (tok != NULL){
+    TOKEN label = makelabel();
+    int currentlabel = labelnumber - 1;
+    tok = makeprogn(tok, label);
+
+    TOKEN gototok = makegoto(currentlabel);
+    statement->link = gototok;
+    TOKEN bodytok = makeprogn(tokb, statement);
+
+    TOKEN iftok = talloc();
+    iftok = makeif(iftok, expr, bodytok, NULL);
+    label->link = iftok;
+
+    if (DEBUG) {
+        printf("makewhile\n");
+        dbugprinttok(tok);
+    }
+    return tok;
+
+    } else return NULL;
+}
 
 /* makesubrange makes a SUBRANGE symbol table entry, puts the pointer to it
    into tok, and returns tok. */
