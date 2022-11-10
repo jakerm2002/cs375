@@ -2119,7 +2119,7 @@ TOKEN makeprogn(TOKEN tok, TOKEN statements)
      return tok;
    }
 
-//add da constant to da symbol table
+
 void  instconst(TOKEN idtok, TOKEN consttok) {
     SYMBOL sym, type;
     TOKEN tokToCopy;
@@ -2168,10 +2168,10 @@ int infer_type(TOKEN tok) {
         } else if (tok->whichval == FIXOP) {
             return INTEGER;
         }
-        return infer_type(tok->operands); //we may need to go down another level
+        return infer_type(tok->operands);
     }
 
-    return -1; //err
+    return -1;
 }
 
 int check_op_simple(TOKEN op) {
@@ -2295,9 +2295,6 @@ TOKEN makerepeat(TOKEN tok, TOKEN statements, TOKEN tokb, TOKEN expr) {
 }
 
 
-
-
-
 // concatenate two token lists
 TOKEN nconc(TOKEN lista, TOKEN listb) {
     TOKEN newList = lista;
@@ -2387,13 +2384,13 @@ TOKEN makewhile(TOKEN tok, TOKEN expr, TOKEN tokb, TOKEN statement) {
    into tok, and returns tok. */
 TOKEN makesubrange(TOKEN tok, int low, int high) {
     if (tok != NULL) {
-        SYMBOL subrange = symalloc();
-        subrange->lowbound = low;
-        subrange->highbound = high;
-        subrange->kind = SUBRANGE;
-        subrange->size = basicsizes[INTEGER];
-        subrange->basicdt = INTEGER;
-        tok->symtype = subrange;
+        SYMBOL subrangeSymbol = symalloc();
+        subrangeSymbol->lowbound = low;
+        subrangeSymbol->highbound = high;
+        subrangeSymbol->kind = SUBRANGE;
+        subrangeSymbol->size = basicsizes[INTEGER];
+        subrangeSymbol->basicdt = INTEGER;
+        tok->symtype = subrangeSymbol;
         return tok;
     }
     if (DEBUG) {
@@ -2566,7 +2563,7 @@ TOKEN reducedot(TOKEN var, TOKEN dot, TOKEN field) {
    tok and tokb are (now) unused tokens that are recycled. */
 TOKEN arrayref(TOKEN arr, TOKEN tok, TOKEN subs, TOKEN tokb) {
     if (subs->link) {
-        TOKEN timesop = makeop(TIMESOP);
+        TOKEN timesToken = makeop(TIMESOP);
         int low = arr->symtype->lowbound;
         int high = arr->symtype->highbound;
         int size = (arr->symtype->size / (high + low - 1));
@@ -2574,29 +2571,27 @@ TOKEN arrayref(TOKEN arr, TOKEN tok, TOKEN subs, TOKEN tokb) {
         subsToken->link = NULL;
         TOKEN sizeElementToken = makeintc(size);
         sizeElementToken->link = subsToken;
-        timesop->operands = sizeElementToken;
+        timesToken->operands = sizeElementToken;
         TOKEN newSizeToken = makeintc(-1 * size);
-        newSizeToken->link = timesop;
-        TOKEN plusop = makeop(PLUSOP);
-        plusop->operands = newSizeToken;
-        TOKEN subarref = makearef(arr, plusop, tokb);
+        newSizeToken->link = timesToken;
+        TOKEN plusToken = makeop(PLUSOP);
+        plusToken->operands = newSizeToken;
+        TOKEN subarref = makearef(arr, plusToken, tokb);
         subarref->symtype = arr->symtype->datatype;
         return arrayref(subarref, tok, subs->link, tokb);
     } else {
-        TOKEN timesop = makeop(TIMESOP);
+        TOKEN timesToken = makeop(TIMESOP);
         int low = arr->symtype->lowbound;
         int high = arr->symtype->highbound;
         int size = (arr->symtype->size / (high + low - 1));
-
         TOKEN sizeElementToken = makeintc(size);
         sizeElementToken->link = subs;
-        timesop->operands = sizeElementToken;
-
+        timesToken->operands = sizeElementToken;
         TOKEN newSizeToken = makeintc(size * -1);
-        newSizeToken->link = timesop;
-        TOKEN plusop = makeop(PLUSOP);
-        plusop->operands = newSizeToken;
-        return makearef(arr, plusop, tokb);
+        newSizeToken->link = timesToken;
+        TOKEN plusToken = makeop(PLUSOP);
+        plusToken->operands = newSizeToken;
+        return makearef(arr, plusToken, tokb);
     }
     if (DEBUG) {
         printf("arrayref\n");
@@ -2639,7 +2634,6 @@ TOKEN instarray(TOKEN bounds, TOKEN typetok) {
 
 /* makefuncall makes a FUNCALL operator and links it to the fn and args.
    tok is a (now) unused token that is recycled. */
-
 TOKEN makefuncall(TOKEN tok, TOKEN fn, TOKEN args) {
     if (strcmp(fn->stringval, "new") == 0) {
         tok = makeop(ASSIGNOP);
@@ -2678,9 +2672,6 @@ TOKEN makefuncall(TOKEN tok, TOKEN fn, TOKEN args) {
     }
     return tok;
 }
-
-
-
 
 TOKEN makeop(int opnum){
     TOKEN tok = talloc();
@@ -2772,42 +2763,26 @@ TOKEN makefor(int sign, TOKEN tok, TOKEN assign, TOKEN tokb, TOKEN expr, TOKEN t
 
 
 TOKEN makeprogram(TOKEN name, TOKEN args, TOKEN statements) {
-    printf("running make program\n");
-    //token for program
     TOKEN tok = talloc();
     tok->tokentype = OPERATOR;
     tok->whichval = PROGRAMOP;
     tok->operands = name;
-
-    //need graph1 to point to a progn
     TOKEN progn_tok = makeprogn(talloc(), args);
-    
-    //make graph1 token point to progn token
     name->link = progn_tok;
-
-    //need to link progn to statements
     progn_tok->link = statements;
-
-
-    if (DEBUG)
-    { printf("makeprogram\n");
-        /* dbugprinttok(tok);
-        dbugprinttok(statements); */
-    };
+    if (DEBUG) {
+        printf("makeprogram\n");
+    }
     return tok;
 }
 
-//creates a label which contains a number that identifies it
 TOKEN makelabel() {
     TOKEN l = talloc();
     l->tokentype = OPERATOR;
     l->whichval = LABELOP;
-
     TOKEN num = makeintc(labelnumber);
     labelnumber++;
-
     l->operands = num;
-    //num->link = NULL; //no more operands
     return l;
 }
 
@@ -2816,43 +2791,33 @@ TOKEN makegoto(int label) {
     tok->tokentype = OPERATOR;
     tok->whichval = GOTOOP;
     TOKEN l_tok = makeintc(label);
-    //we must assign the goto operator (tok) to the label reference
     tok->operands = l_tok;
-    //l_tok->link = NULL; //no more operands
     return tok;
 }
 
 TOKEN makeintc(int num) {
     TOKEN tok = talloc();
     tok->basicdt = INTEGER;
-    tok->intval = num; //set the value to num
+    tok->intval = num; 
     tok->tokentype = NUMBERTOK;
     return tok;
 }
 
 TOKEN findtype(TOKEN tok) {
     SYMBOL sym = searchst(tok->stringval);
-
-    switch(sym->kind){
-       case TYPESYM:
-       sym = sym->datatype;
-       break;
-
-       case BASICTYPE:
-       tok->symtype = sym; 
-       tok->basicdt = sym->basicdt; 
+    if (sym->kind == TYPESYM) {
+        sym = sym->datatype;
+    } else if (sym->kind == BASICTYPE) {
+        tok->symtype = sym; 
+        tok->basicdt = sym->basicdt; 
     }
-  
-   tok->symtype = sym;
+    tok->symtype = sym;
     if (DEBUG) {
-      printf("fin\n");
-      dbugprinttok(tok);
+        printf("findtype\n");
     }
-
     return tok;
 }
 
-/* install variables in symbol table */
 void instvars(TOKEN idlist, TOKEN typetok) {
     int align;
     SYMBOL type, sym; 
