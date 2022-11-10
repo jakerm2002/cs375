@@ -688,37 +688,19 @@ TOKEN makearef(TOKEN var, TOKEN off, TOKEN tok) {
 /* reducedot handles a record reference.
    dot is a (now) unused token that is recycled. */
 TOKEN reducedot(TOKEN var, TOKEN dot, TOKEN field) {
-    printf("yo from reducedot\n");
-    dbugprinttok(var);
-    dbugprinttok(dot);
-    dbugprinttok(field);
     SYMBOL record = var->symentry;
-    printf("reducedot okay\n");
-    SYMBOL curfield = record->datatype->datatype;
+    SYMBOL currentRecordField = record->datatype->datatype;
     int offset = 0;
-    int off;
-    printf("reducedot okay\n");
-    while(curfield) {
-        if (strcmp(curfield->namestring, field->stringval) == 0)
-            off = 0; 
-        else off = 1; 
-        switch(off){
-            case 0: 
-            offset = curfield->offset;
-            var->symentry = curfield;
+    while(currentRecordField) {
+        if (strcmp(currentRecordField->namestring, field->stringval) == 0) {
+            offset = currentRecordField->offset;
+            var->symentry = currentRecordField;
             break;
-
-            case 1: 
-            curfield = curfield->link;
-            break;
+        } else {
+            currentRecordField = currentRecordField->link;
         }
-        if (off==0)
-            break;
     }
-    
-    printf("reducedot okay\n");
     dot = makearef(var, makeintc(offset), dot);
-
     if (DEBUG) {
         printf("reducedot\n");
     }
