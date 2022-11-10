@@ -2624,10 +2624,10 @@ TOKEN instarray(TOKEN bounds, TOKEN typetok) {
     SYMBOL symbolSubRange = bounds->symtype;
     SYMBOL typeSymbol = typetok->symtype;
     SYMBOL arraySymbol = symalloc();
+    arraySymbol->highbound = symbolSubRange->highbound;
+    arraySymbol->lowbound = symbolSubRange->lowbound;
     arraySymbol->kind = ARRAYSYM;
     arraySymbol->datatype = typeSymbol;
-    arraySymbol->lowbound = symbolSubRange->lowbound;
-    arraySymbol->highbound = symbolSubRange->highbound;
     arraySymbol->size = (arraySymbol->highbound - arraySymbol->lowbound +  1) * (typeSymbol->size);
     typetok->symtype = arraySymbol;
     return typetok;
