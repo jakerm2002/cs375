@@ -464,22 +464,18 @@ TOKEN nconc(TOKEN lista, TOKEN listb) {
 
 // action for the goto
 TOKEN dogoto(TOKEN tok, TOKEN labeltok) {
-    
-    int found = 0; 
-    int labelnum;
+    int currentLabelNumber;
     int i = 0;
-    while(i < labelnumber){
-      if (labeltable[i] == labeltok->intval){
-        labelnum = i; 
-        found = 1;
+    while (i < labelnumber) {
+      if (labeltable[i] == labeltok->intval) {
+        currentLabelNumber = i; 
       }
       i++;
     }
-
-    tok = makegoto(labelnum);
-    if (DEBUG)
-      printf("dogoto\n");
-
+    tok = makegoto(currentLabelNumber);
+    if (DEBUG) {
+      printf("hello from dogoto\n");
+    }
     return tok;
 }
 
