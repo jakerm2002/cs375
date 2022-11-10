@@ -2119,11 +2119,6 @@ TOKEN makeprogn(TOKEN tok, TOKEN statements)
      return tok;
    }
 
-
-
-
-//******* part 2 methods
-
 //add da constant to da symbol table
 void  instconst(TOKEN idtok, TOKEN consttok) {
     SYMBOL sym, type;
@@ -2158,29 +2153,19 @@ void  instconst(TOKEN idtok, TOKEN consttok) {
     sym->kind = CONSTSYM;
 }
 
-
-
-
-
 //return the data type of a token or operator token
 int infer_type(TOKEN tok) {
     if (tok->tokentype == IDENTIFIERTOK || tok->tokentype == NUMBERTOK) {
         return tok->basicdt;
-    }
-
-    if (tok->tokentype == STRINGTOK) {
+    } else if (tok->tokentype == STRINGTOK) {
         return STRINGTYPE;
-    }
-
-    if (tok->tokentype == OPERATOR) {
+    } else if (tok->tokentype == OPERATOR) {
         if (tok->whichval == FLOATOP) {
             return REAL;
-        }
-        if (tok->whichval == FUNCALLOP) {
+        } else if (tok->whichval == FUNCALLOP) {
             printf("inferring funcall type as %d\n", tok->operands->basicdt);
             return tok->operands->basicdt;
-        }
-        if (tok->whichval == FIXOP) {
+        } else if (tok->whichval == FIXOP) {
             return INTEGER;
         }
         return infer_type(tok->operands); //we may need to go down another level
@@ -2189,20 +2174,13 @@ int infer_type(TOKEN tok) {
     return -1; //err
 }
 
-
-//returns bool 1 for true
 int check_op_simple(TOKEN op) {
     int action = op->whichval;
-    //printf("RETURNING %d\n", (action >= 1 && action <= 4) || (action == DIVOP || action == MODOP));
     return (action >= 1 && action <= 4) || (action == DIVOP || action == MODOP);
 }
 
 
-
-
-TOKEN findid(TOKEN tok) { /* the ID token */
-
-    printf("hey from findid\n");
+TOKEN findid(TOKEN tok) { 
     SYMBOL sym = searchst(tok->stringval);
 
     if ( sym->kind == CONSTSYM ) {
@@ -2210,24 +2188,20 @@ TOKEN findid(TOKEN tok) { /* the ID token */
         if (sym->basicdt == STRINGTYPE) {
             strcpy(tok->stringval, sym->constval.stringconst);
             tok->tokentype = STRINGTOK;
-        }
-        if (sym->basicdt == REAL) {
-            tok->realval = sym->constval.realnum;
+        } else if (sym->basicdt == REAL) {
             tok->tokentype = NUMBERTOK;
-        }
-        if (sym->basicdt == INTEGER) {
+            tok->realval = sym->constval.realnum;
+        } else if (sym->basicdt == INTEGER) {
             tok->intval = sym->constval.intnum;
             tok->tokentype = NUMBERTOK;
         }
     } else {
         tok->symentry = sym;
-        tok->symtype = sym->datatype;
         tok->basicdt = sym->datatype->basicdt;
+        tok->symtype = sym->datatype;
     }
-    
     return tok; 
 }
-
 
 
 TOKEN binop(TOKEN op, TOKEN lhs, TOKEN rhs)        /* reduce binary operator */
@@ -2236,11 +2210,6 @@ TOKEN binop(TOKEN op, TOKEN lhs, TOKEN rhs)        /* reduce binary operator */
     int typ_lhs = infer_type(lhs);
     int typ_rhs = infer_type(rhs);
 
-    //printf("binop seeing typ_lhs as %d and typ_rhs as %d\n", typ_lhs, typ_rhs);
-
-
-    //convert to float before performing arithmetic operation
-    //if this is an assignment, convert to either float or int depending on what is on lhs
     if ( (typ_lhs == REAL && typ_rhs == INTEGER) ) {
         if (check_op_simple(op)) {
             rhs = makefloat(rhs);
@@ -2273,17 +2242,14 @@ TOKEN binop(TOKEN op, TOKEN lhs, TOKEN rhs)        /* reduce binary operator */
 
 TOKEN makefloat(TOKEN tok) {
 	if (tok->tokentype == NUMBERTOK && tok->basicdt == INTEGER) {
-		//printf("executing makefloat 1\n");
         tok->basicdt = REAL;
 		tok->realval = tok->intval;
 		return tok;
 	} else if (tok->tokentype == IDENTIFIERTOK) {
-		//printf("executing makefloat 2\n");
         TOKEN floatTok = makeop(FLOATOP);
 		floatTok->operands = tok;
         return floatTok;
 	} else {
-		//printf("executing makefloat 3");
         return tok;
 	}
 	return tok;
@@ -2292,15 +2258,11 @@ TOKEN makefloat(TOKEN tok) {
 /* makefix forces the item tok to be integer, by truncating a constant
    or by inserting a FIXOP operator */
 TOKEN makefix(TOKEN tok) {
-    //printf("HELLO FROM MAKEFIX\n");
 	if (tok->tokentype == NUMBERTOK && tok->basicdt == REAL) {
-		//printf("makeFIX executing 1\n");
         tok->basicdt = INTEGER;
 		tok->intval = tok->realval;
 		return tok;
 	} else {
-        //should only need to execute this one
-		//printf("makeFIX executing 2\n");
         TOKEN fixTok = makeop(FIXOP);
 		fixTok->operands = tok;
         return fixTok;
@@ -2332,51 +2294,34 @@ TOKEN makerepeat(TOKEN tok, TOKEN statements, TOKEN tokb, TOKEN expr) {
 	return makeprogn(talloc(), l_tok);
 }
 
-//****** end of part 2 methods
 
 
 
 
-//************ part 3 methods
-
-/* nconc concatenates two token lists, destructively, by making the last link
-   of lista point to listb.
-   (nconc '(a b) '(c d e))  =  (a b c d e)  */
-/* nconc is useful for putting together two fieldlist groups to
-   make them into a single list in a record declaration. */
-/* nconc should return lista, or listb if lista is NULL. */
+// concatenate two token lists
 TOKEN nconc(TOKEN lista, TOKEN listb) {
-    TOKEN fullist = lista;
+    TOKEN newList = lista;
     if (lista==NULL)
     return lista;
     else {
-    while(fullist->link) 
-        fullist = fullist->link;
-    fullist->link = listb;
+        while(newList->link) {
+            newList = newList->link;
+        }
+        newList->link = listb;
     }
 
     if (DEBUG) {
-    printf("nconc\n");
+        printf("nconc\n");
     }
-    return fullist;
+    return newList;
 }
 
-/* fillintc smashes tok, making it into an INTEGER constant with value num */
-TOKEN fillintc(TOKEN tok, int num) {
-
-}
-
-/* appendst makes a progn containing statements followed by more */
-TOKEN appendst(TOKEN statements, TOKEN more) {
-
-}
-
-/* dogoto is the action for a goto statement.
-   tok is a (now) unused token that is recycled. */
+// action for the goto
 TOKEN dogoto(TOKEN tok, TOKEN labeltok) {
-    int i=0; 
+    
     int found = 0; 
     int labelnum;
+    int i = 0;
     while(i < labelnumber){
       if (labeltable[i] == labeltok->intval){
         labelnum = i; 
@@ -2384,8 +2329,6 @@ TOKEN dogoto(TOKEN tok, TOKEN labeltok) {
       }
       i++;
     }
-    if (found==0)
-      printf("Error");
 
     tok = makegoto(labelnum);
     if (DEBUG)
