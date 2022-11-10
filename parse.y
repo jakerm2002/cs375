@@ -506,57 +506,45 @@ void instlabel (TOKEN num) {
     labels[labelnumber++] = num->intval;  
 }
 
-/* settoktype sets up the type fields of token tok.
-   typ = type pointer, ent = symbol table entry of the variable  */
-void  settoktype(TOKEN tok, SYMBOL typ, SYMBOL ent);
-
-/* makewhile makes structures for a while statement.
-   tok and tokb are (now) unused tokens that are recycled. */
+// while statement structure
 TOKEN makewhile(TOKEN tok, TOKEN expr, TOKEN tokb, TOKEN statement) {
-    if (tok != NULL){
-    TOKEN label = makelabel();
-    int currentlabel = labelnumber - 1;
-    tok = makeprogn(tok, label);
+    if (tok != NULL) {
+        TOKEN label = makelabel();
+        
+        tok = makeprogn(tok, label);
+        int currentlabel = labelnumber - 1;
+        TOKEN gototok = makegoto(currentlabel);
+        statement->link = gototok;
+        TOKEN bodytok = makeprogn(tokb, statement);
 
-    TOKEN gototok = makegoto(currentlabel);
-    statement->link = gototok;
-    TOKEN bodytok = makeprogn(tokb, statement);
-
-    TOKEN iftok = talloc();
-    iftok = makeif(iftok, expr, bodytok, NULL);
-    label->link = iftok;
-
-    if (DEBUG) {
-        printf("makewhile\n");
-        dbugprinttok(tok);
+        TOKEN iftok = talloc();
+        iftok = makeif(iftok, expr, bodytok, NULL);
+        label->link = iftok;
+        if (DEBUG) {
+            printf("makewhile\n");
+            dbugprinttok(tok);
+        }
+        return tok;
     }
-    return tok;
-
-    } else return NULL;
+    return NULL;
 }
 
 /* makesubrange makes a SUBRANGE symbol table entry, puts the pointer to it
    into tok, and returns tok. */
 TOKEN makesubrange(TOKEN tok, int low, int high) {
-    int flag = 0; 
-    if (tok != NULL)
-    flag = 1;
-
-    switch (flag){
-    case 1:{
+    if (tok != NULL) {
         SYMBOL subrange = symalloc();
-        subrange->kind = SUBRANGE;
-        subrange->basicdt = INTEGER;
         subrange->lowbound = low;
         subrange->highbound = high;
+        subrange->kind = SUBRANGE;
         subrange->size = basicsizes[INTEGER];
+        subrange->basicdt = INTEGER;
         tok->symtype = subrange;
         return tok;
     }
-    } 
-
-    if (DEBUG)
-    printf("makesubrange\n");
+    if (DEBUG) {
+        printf("makesubrange\n");
+    }
 }
 
 /* instenum installs an enumerated subrange in the symbol table,
@@ -564,27 +552,25 @@ TOKEN makesubrange(TOKEN tok, int low, int high) {
    by calling makesubrange and returning the token it returns. */
 TOKEN instenum(TOKEN idlist) {
     int size = 0;
-    TOKEN list = copytok(idlist);
-
-    for (int i=0; list; i++) {
-    instconst(list, makeintc(size));
-    size ++;
-    list = list->link;
+    TOKEN arr = copytok(idlist);
+    for (int i = 0; arr; i++) {
+        instconst(arr, makeintc(size));
+        arr = arr->link;
+        size++;
     }
-
     TOKEN tok = makesubrange(idlist, 0, size - 1);
-    if (DEBUG) 
-    printf("instenum\n");
-
+    if (DEBUG){
+        printf("instenum\n");
+    }
     return tok;
 }
 
 /* instdotdot installs a .. subrange in the symbol table.
    dottok is a (now) unused token that is recycled. */
 TOKEN instdotdot(TOKEN lowtok, TOKEN dottok, TOKEN hightok) {
-    int low = lowtok->intval;
-    int high = hightok->intval;
-    return makesubrange(dottok, low, high);
+    int highBound = hightok->intval;
+    int lowBound = lowtok->intval;
+    return makesubrange(dottok, lowBound, highBound);
 }
 
 /* insttype will install a type name in symbol table.
