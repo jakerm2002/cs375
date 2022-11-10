@@ -576,11 +576,10 @@ TOKEN instdotdot(TOKEN lowtok, TOKEN dottok, TOKEN hightok) {
 /* insttype will install a type name in symbol table.
    typetok is a token containing symbol table pointers. */
 void  insttype(TOKEN typename, TOKEN typetok) {
-    SYMBOL typesym = searchins(typename->stringval);
-    typesym->kind = TYPESYM;
-    typesym->datatype = typetok->symtype;
-    typesym->size = typetok->symtype->size;
-
+    SYMBOL typeSymbol = searchins(typename->stringval);
+    typeSymbol->kind = TYPESYM;
+    typeSymbol->size = typetok->symtype->size;
+    typeSymbol->datatype = typetok->symtype;
     if (DEBUG) {
         printf("insttype\n");
     }
@@ -588,22 +587,21 @@ void  insttype(TOKEN typename, TOKEN typetok) {
 
 /* instpoint will install a pointer type in symbol table */
 TOKEN instpoint(TOKEN tok, TOKEN typename) {
-    if (tok != NULL){
-    SYMBOL typesym = searchins(typename->stringval);
-    SYMBOL pointsym = symalloc();
-    pointsym->datatype = typesym;
-    pointsym->kind = POINTERSYM;
-    pointsym->size = basicsizes[POINTER];
-    pointsym->basicdt = POINTER;
-
-    tok->symtype = pointsym;
-    } else return NULL;
-
+    if (tok != NULL) {
+        SYMBOL typeSymbol = searchins(typename->stringval);
+        SYMBOL pointerSymbol = symalloc();
+        pointerSymbol->size = basicsizes[POINTER];
+        pointerSymbol->basicdt = POINTER;
+        pointerSymbol->datatype = typeSymbol;
+        pointerSymbol->kind = POINTERSYM;
+        tok->symtype = pointerSymbol;
+    } else {
+        return NULL;
+    }
     if (DEBUG) {
-        printf("install point\n");
+        printf("instpoint\n");
         dbugprinttok(tok);
     }
-
     return tok;
 }
 
