@@ -54,6 +54,7 @@
 #include "parse.h"
 #include "pprint.h"
 #include <string.h>
+#include "codegen.h"
 
         /* define the type of the Yacc stack element to be TOKEN */
 
@@ -998,7 +999,7 @@ int main(void)          /*  */
     if (DEBUG & DB_PARSERES) dbugprinttok(parseresult);
     ppexpr(parseresult);           /* Pretty-print the result tree */
     /* uncomment following to call code generator. */
-     /* 
+    
     gencode(parseresult, blockoffs[blocknumber], labelnumber);
- */
+ 
   }

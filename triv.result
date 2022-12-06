@@ -1,0 +1,101 @@
+findtype
+makeprogram
+Symbol table level 0
+ 93988297683552        real  BASIC  basicdt   1          siz     8
+ 93988297683648     integer  BASIC  basicdt   0          siz     4
+ 93988297683744        char  BASIC  basicdt   2          siz     1
+ 93988297683840     boolean  BASIC  basicdt   3          siz     4
+ 93988297683936         exp  knd 5 0  typ 93988297684032  lvl  0  siz     0  off     0
+(FUNCTION real
+          real)
+ 93988297684224       trexp  knd 5 0  typ 93988297684320  lvl  0  siz     0  off     0
+(FUNCTION real
+          real)
+ 93988297684512         sin  knd 5 0  typ 93988297684608  lvl  0  siz     0  off     0
+(FUNCTION real
+          real)
+ 93988297684800         cos  knd 5 0  typ 93988297684896  lvl  0  siz     0  off     0
+(FUNCTION real
+          real)
+ 93988297685088       trsin  knd 5 0  typ 93988297685184  lvl  0  siz     0  off     0
+(FUNCTION real
+          real)
+ 93988297685376        sqrt  knd 5 0  typ 93988297685472  lvl  0  siz     0  off     0
+(FUNCTION real
+          real)
+ 93988297685664       round  knd 5 0  typ 93988297685760  lvl  0  siz     0  off     0
+(FUNCTION real
+          real)
+ 93988297685952      iround  knd 5 0  typ 93988297686048  lvl  0  siz     0  off     0
+(FUNCTION integer
+          real)
+ 93988297686240         ord  knd 5 0  typ 93988297686336  lvl  0  siz     0  off     0
+(FUNCTION integer
+          integer)
+ 93988297686528         new  knd 5 0  typ 93988297686624  lvl  0  siz     0  off     0
+(FUNCTION integer
+          integer)
+ 93988297686816       trnew  knd 5 0  typ 93988297686912  lvl  0  siz     0  off     0
+(FUNCTION integer
+          integer)
+ 93988297687104       write  knd 5 0  typ 93988297687200  lvl  0  siz     0  off     0
+(FUNCTION NULL
+          char)
+ 93988297687392     writeln  knd 5 0  typ 93988297687488  lvl  0  siz     0  off     0
+(FUNCTION NULL
+          char)
+ 93988297687680      writef  knd 5 0  typ 93988297687776  lvl  0  siz     0  off     0
+(FUNCTION NULL
+          real)
+ 93988297687968    writelnf  knd 5 0  typ 93988297688064  lvl  0  siz     0  off     0
+(FUNCTION NULL
+          real)
+ 93988297688256      writei  knd 5 0  typ 93988297688352  lvl  0  siz     0  off     0
+(FUNCTION NULL
+          integer)
+ 93988297688544    writelni  knd 5 0  typ 93988297688640  lvl  0  siz     0  off     0
+(FUNCTION NULL
+          integer)
+ 93988297688832        read  knd 5 0  typ 93988297688928  lvl  0  siz     0  off     0
+(FUNCTION NULL
+          NULL)
+ 93988297689120      readln  knd 5 0  typ 93988297689216  lvl  0  siz     0  off     0
+(FUNCTION NULL
+          NULL)
+ 93988297689408         eof  knd 5 0  typ 93988297689504  lvl  0  siz     0  off     0
+(FUNCTION boolean
+          NULL)
+Symbol table level 1
+ 93988297723328           i  VAR    0 typ integer  lvl  1  siz     4  off     0
+yyparse result =        0
+(program graph1 (progn output)
+                (progn (:= i 3)))
+# ---------------- Beginning of Generated Code --------------------
+        .file   "foo"
+        .text
+        .globl graph1
+        .type   graph1, @function
+graph1:
+.LFB0:
+	.cfi_startproc
+	pushq	%rbp              # save base pointer on stack
+	.cfi_def_cfa_offset 16
+	movq	%rsp, %rbp        # move stack pointer to base pointer
+	.cfi_offset 6, -16
+	.cfi_def_cfa_register 6
+        subq	$32, %rsp 	  # make space for this stack frame
+	movq	%rbx, %r9        # save %rbx (callee-saved) in %r9
+# ------------------------- begin Your code -----------------------------
+	movl	$3,%eax         	#  3 -> %eax
+	movl	%eax,-32(%rbp)     	#  %eax -> i
+# ----------------------- begin Epilogue code ---------------------------
+	movq	%r9, %rbx        # restore %rbx (callee-saved) from %r9
+        leave
+        ret
+        .cfi_endproc
+.LFE0:
+        .size   graph1, .-graph1
+# ----------------- end Epilogue; Literal data follows ------------------
+        .section        .rodata
+
+        .ident  "CS 375 Compiler - Summer 2022"
