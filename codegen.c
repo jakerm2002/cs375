@@ -203,7 +203,7 @@ int genarith(TOKEN code)
         {
         case INTEGER:
             num = code->intval;
-            reg = getreg(WORD);
+            reg = getreg(INTEGER);
             if (num >= MINIMMEDIATE && num <= MAXIMMEDIATE)
                 asmimmed(MOVL, num, reg);
             break;

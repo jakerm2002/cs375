@@ -14,21 +14,21 @@ graph1:
         subq	$32, %rsp 	  # make space for this stack frame
 	movq	%rbx, %r9        # save %rbx (callee-saved) in %r9
 # ------------------------- begin Your code -----------------------------
-	movl	$7,%xmm0         	#  7 -> %xmm0
-	movl	%xmm0,-28(%rbp)     	#  %xmm0 -> lim
-	movl	$0,%xmm1         	#  0 -> %xmm1
-	movl	%xmm1,-32(%rbp)     	#  %xmm1 -> i
+	movl	$7,%eax         	#  7 -> %eax
+	movl	%eax,-28(%rbp)     	#  %eax -> lim
+	movl	$0,%ecx         	#  0 -> %ecx
+	movl	%ecx,-32(%rbp)     	#  %ecx -> i
 .L0:
-	movl	-32(%rbp),%eax     	#  i -> %eax
-	movl	-28(%rbp),%ecx     	#  lim -> %ecx
+	movl	-32(%rbp),%edx     	#  i -> %edx
+	movl	-28(%rbp),%ebx     	#  lim -> %ebx
 	jle	.L2 			#  jump if     <=
 	jmp	.L3 			#  jump 
 .L2:
 	call	writeln@PLT          	#  writeln()
-	movl	-32(%rbp),%ecx     	#  i -> %ecx
-	movl	$1,%xmm2         	#  1 -> %xmm2
-	addl	%xmm2,%ecx         	#  %ecx + %xmm2 -> %ecx
-	movl	%ecx,-32(%rbp)     	#  %ecx -> i
+	movl	-32(%rbp),%ebx     	#  i -> %ebx
+	movl	$1,%ecx         	#  1 -> %ecx
+	addl	%ecx,%ebx         	#  %ebx + %ecx -> %ebx
+	movl	%ebx,-32(%rbp)     	#  %ebx -> i
 	jmp	.L0 			#  jump 
 .L3:
 # ----------------------- begin Epilogue code ---------------------------
