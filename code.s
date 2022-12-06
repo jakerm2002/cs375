@@ -21,13 +21,14 @@ graph1:
 .L0:
 	movl	-32(%rbp),%edx     	#  i -> %edx
 	movl	-28(%rbp),%ebx     	#  lim -> %ebx
+	movl	%ebx,%edx         	#  %ebx -> %edx
 	jle	.L2 			#  jump if     <=
 	jmp	.L3 			#  jump 
 .L2:
 	call	writeln@PLT          	#  writeln()
 	movl	-32(%rbp),%ebx     	#  i -> %ebx
 	movl	$1,%ecx         	#  1 -> %ecx
-	addl	%ecx,%ebx         	#  %ebx + %ecx -> %ebx
+	movl	%ecx,%ebx         	#  %ecx -> %ebx
 	movl	%ebx,-32(%rbp)     	#  %ebx -> i
 	jmp	.L0 			#  jump 
 .L3:
