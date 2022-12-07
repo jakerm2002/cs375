@@ -35,65 +35,24 @@ void genc(TOKEN code);
 /* Set DEBUGGEN to 1 for debug printouts of code generation */
 #define DEBUGGEN 0
 
+int recount = 0;
+int recount2 = 0;
 int nextlabel;    /* Next available label number */
-int stkframesize; /* total stack frame size */
-int registers[32];
+int stkframesize;   /* total stack frame size */
+int regs[FMAX + 1];
 int hassaved = 0;
-
-int op_to_inst_int[50];
-int op_to_inst_real[50];
-int op_to_inst_point[50];
-
-int ifc_to_jinst[50];
-
 /* Top-level entry for code generator.
    pcode    = pointer to code:  (program foo (output) (progn ...))
    varsize  = size of local storage in bytes
    maxlabel = maximum label number used so far
-
 Add this line to the end of your main program:
     gencode(parseresult, blockoffs[blocknumber], labelnumber);
 The generated code is printed out; use a text editor to extract it for
 your .s file.
          */
 
-          void initalisetables() {
-    op_to_inst_int[PLUSOP] = ADDL;
-    op_to_inst_int[MINUSOP] = SUBL;
-    op_to_inst_int[TIMESOP] = IMULL;
-    op_to_inst_int[DIVIDEOP] = DIVL;
-    op_to_inst_int[ANDOP] = ANDL;
-    op_to_inst_int[OROP] = ORL;
-    op_to_inst_int[EQOP] = op_to_inst_int[LEOP] = op_to_inst_int[LTOP] = op_to_inst_int[GEOP] = op_to_inst_int[GTOP] = op_to_inst_int[NEOP] = CMPL;
-
-
-    op_to_inst_real[PLUSOP] = ADDSD;
-    op_to_inst_real[MINUSOP] = SUBSD;
-    op_to_inst_real[TIMESOP] = MULSD;
-    op_to_inst_real[DIVIDEOP] = DIVSD;
-    op_to_inst_real[NOTOP] = NEGSD;
-    op_to_inst_real[EQOP] = op_to_inst_real[LEOP] = op_to_inst_real[LTOP] = op_to_inst_real[GEOP] = op_to_inst_real[GTOP] = op_to_inst_real[NEOP] = CMPSD;
-
-
-    op_to_inst_point[PLUSOP] = ADDQ;
-    op_to_inst_point[MINUSOP] = SUBQ;
-    op_to_inst_point[TIMESOP] = IMULQ;
-    op_to_inst_point[ANDOP] = ANDQ;
-    op_to_inst_point[NOTOP] = NOTQ;
-    op_to_inst_point[OROP] = ORQ;
-    op_to_inst_point[EQOP] = op_to_inst_point[LEOP] = op_to_inst_point[LTOP] = op_to_inst_point[GEOP] = op_to_inst_point[GTOP] = op_to_inst_point[NEOP] = CMPQ;
-
-    ifc_to_jinst[EQOP] = JE;
-    ifc_to_jinst[NEOP] = JNE;
-    ifc_to_jinst[LTOP] = JL;
-    ifc_to_jinst[LEOP] = JLE;
-    ifc_to_jinst[GEOP] = JGE;
-    ifc_to_jinst[GTOP] = JG;
-  }
-
-void gencode(TOKEN pcode, int varsize, int maxlabel) {
-     initalisetables();
-     TOKEN name, code;
+void gencode(TOKEN pcode, int varsize, int maxlabel)
+  {  TOKEN name, code;
      name = pcode->operands;
      code = name->link->link;
      nextlabel = maxlabel + 1;
@@ -102,293 +61,501 @@ void gencode(TOKEN pcode, int varsize, int maxlabel) {
      asmexit(name->stringval);
   }
 
-int getreg(int kind)
-  {
-    int chosen_register;
+/* Trivial version: always returns RBASE + 0 */
+/* Get a register.   */
+/* Need a type parameter or two versions for INTEGER or REAL */
+int getreg(int kind) {
+	//printf("in getreg\n");fflush(0);
+	int i;
+	if(kind == INTEGER || kind == BOOLETYPE || kind == POINTER) {
+		for(i = RBASE; i <= RMAX; i++) {
+			if(regs[i] == 0) {
+				regs[i] = 1;
+				//printf("end getreg\n");fflush(0);
+				return i;
+			}
+		}
+	} else if(kind == REAL || kind == STRINGTYPE) {
+		for(i = FBASE; i <= FMAX; i++) {
+			if(regs[i] == 0) {
+				regs[i] = 1;
+				//printf("end getreg\n");fflush(0);
+				return i;
+			}
+		}
+	}
+}
 
-    if (kind == 1) {  
-      for (int i = RBASE; i <= RMAX; i ++) {
-        if (registers[i] == 0) {
-          used(i);
-          chosen_register =  i; 
-          break;
-        }
-      }
-    } else {
-      for (int i = FBASE; i <= FMAX; i ++) {
-        if (registers[i] == 0) {
-          used(i);
-          chosen_register = i;
-          break;
-        }
-      }
-    }
+void clearreg() {
+	int i;
+	for( i = 0; i < sizeof(regs); i++) {
+		regs[i] = 0;
+	}
+}
 
-    if (DEBUGGEN) {
-      printf("getreg\n");
-      printf("chosen %d\n", chosen_register);
-    }
-    return chosen_register;
-  }
+void used(int reg) {
+	regs[reg] = 1;
+}
 
+void unused(int reg) {
+	regs[reg] = 0;
+}
+
+int funcallin(TOKEN code) {
+	//printf("in funcallin");fflush(0);
+	if(code->tokentype == OPERATOR && code->whichval == FUNCALLOP)
+		return 1;
+
+	if(code->operands != NULL)
+		if(funcallin(code->operands))
+			return 1;
+
+	if(code->link != NULL)
+		if(funcallin(code->link))
+			return 1;
+
+	return 0;
+}
+
+/* Trivial version */
 /* Generate code for arithmetic expression, return a register number */
-int genarith(TOKEN code)
-  { 
-    int num, reg, offs, reg1 = -1, reg2 = -1;
-    SYMBOL sym;
-    float value;
-    TOKEN lhs, rhs;
+int genarith(TOKEN code) {
+	recount+=1;
+	int count = recount;
+	//printf("in genarith %d\n", count);fflush(0);
+	int num, reg, reg2;
+	double fnum;
+	int off;
+	SYMBOL s;
+	TOKEN lhs, rhs;
 
-    if (DEBUGGEN) { 
-      printf("genarith\n");
-	    dbugprinttok(code);
+	switch ( code->tokentype ) {
+		case NUMBERTOK:
+			//printf("in numbertok\n");fflush(0);
+			switch (code->basicdt) {
+				case INTEGER:
+					//printf("in numbertok->integer\n");fflush(0);
+					num = code->intval;
+					reg = getreg(INTEGER);
+					if ( num >= MINIMMEDIATE && num <= MAXIMMEDIATE )
+						asmimmed(MOVL, num, reg);
+				break;
+				case REAL:
+					//printf("in numbertok->real\n");fflush(0);		// here
+					fnum = code->realval;
+					reg = getreg(REAL);
+					makeflit(fnum, nextlabel);
+					asmldflit(MOVSD, nextlabel++, reg);
+				break;
+				case POINTER:
+					//printf("in numbertok->pointer\n");fflush(0);
+					num = code->intval;
+					reg = getreg(POINTER);
+					asmimmed(MOVQ, num, reg);
+				break;
+			}
+		break;
+		case IDENTIFIERTOK:
+			s = searchst(code->stringval);
+			off = s->offset - stkframesize;
+			if(s->basicdt == REAL) {
+				//printf("in identifiertok->if->real\n");fflush(0);
+				reg = getreg(REAL);
+				asmld(MOVSD, off, reg, s->namestring);
+			} else {
+				switch(code->basicdt) {
+					case INTEGER:
+						//printf("in identifiertok->integer\n");fflush(0);
+						reg = getreg(INTEGER);
+						asmld(MOVL, off, reg, s->namestring);
+					break;
+					case REAL:
+						//printf("in identifiertok->real\n");fflush(0);
+						reg = getreg(REAL);
+						asmld(MOVSD, off, reg, s->namestring);
+					break;
+					case POINTER:
+						//printf("in identifiertok->pointer\n");fflush(0);
+						reg = getreg(POINTER);
+						asmld(MOVQ, off, reg, s->namestring);
+					break;
+				}
+			}
+		break;
+		case STRINGTOK:
+			reg = getreg(STRINGTYPE);
+			asmlitarg(nextlabel, EDI);
+			makeblit(code->stringval, nextlabel++);
+		break;
+		case OPERATOR:
+			//printf("in operator\n");fflush(0);
+			lhs = code->operands;
+			rhs = lhs->link;
 
-    };
-    switch ( code->tokentype ) { 
-      case NUMBERTOK:   switch (code->basicdt) { 
-                            case INTEGER: num = code->intval;
-                                          reg = getreg(1);
-                                     		  if ( num >= MINIMMEDIATE && num <= MAXIMMEDIATE )
-                                   		    asmimmed(MOVL, num, reg);
-                                     		  break;
-    	                      case REAL:    value = code->realval;
-                                          reg = getreg(2);
-                                          int label = nextlabel ++;
-                                          makeflit(value, label);
-                                          asmldflit(MOVSD, label, reg);
-                                          break;
-              	        }
-                        break;
+			if(code->whichval != FUNCALLOP) {
 
-      case STRINGTOK: num = nextlabel++;
-                      makeblit(code->stringval, num);
-                      reg = EDI;
-                      asmlitarg(num, reg);
-                      break;
+				reg = genarith(lhs);
+				if(rhs != NULL && !(lhs->whichval == POINTEROP && rhs->tokentype == NUMBERTOK))
+					reg2 = genarith(rhs);
+			}
 
-      case IDENTIFIERTOK: //If not a function
-                          sym =  code->symentry;
-                          offs = sym->offset - stkframesize;
-                          switch (code->basicdt) {
-                            case INTEGER: reg = getreg(1);
-                                          asmld(MOVL, offs, reg, code->stringval);
-                                          break;
-                            case REAL:    reg = getreg(2);
-                                          asmld(MOVSD, offs, reg, code->stringval); 
-                                          break;
-                            case POINTER: reg = getreg(1);
-                                          asmld(MOVQ, offs, reg, code->stringval);
-                                          break; 
-                          }
-                          break;
+			if(code->whichval == PLUSOP) {
+				switch(code->basicdt) {
+					case INTEGER:
+						asmrr(ADDL, reg2, reg);
+					break;
+					case REAL:
+						asmrr(ADDSD, reg2, reg);
+					break;
+				}
+			} else if(code->whichval == MINUSOP) {
+				if(rhs == NULL) {
+					s = lhs->symentry;
+					if(s->basicdt == REAL) {
+						//printf("in operator->if->minusop->real\n");fflush(0);
+    						reg2 = getreg(REAL);
+    						asmfneg(reg, reg2);
+    						reg = reg2;
+    						unused(reg2);
+					} else {
+						reg2 = getreg(INTEGER);
+						asmimmed(MOVL, 0, reg2);
+						asmrr(SUBL, reg, reg2);
+						reg ^= reg2;
+						reg2 ^= reg;
+						reg ^= reg2;
+						unused(reg2);
+					}
+				} else {
+					switch(code->basicdt) {
+						case INTEGER:
+							asmrr(SUBL, reg2, reg);
+						break;
+						case REAL:
+							asmrr(SUBSD, reg2, reg);
+						break;
+					}
+				}
+			} else if(code->whichval == TIMESOP) {
+				//printf("in timesop\n");fflush(0);
+				switch(code->basicdt) {
+					case INTEGER:
+						asmrr(IMULL, reg2, reg);
+					break;
+					case REAL:
+						asmrr(MULSD, reg2, reg);
+					break;
+				}
+			} else if(code->whichval == FLOATOP) {
+				//printf("in floatop\n");fflush(0);
+				reg2 = getreg(REAL);
+				asmfloat(reg, reg2);
+				reg ^= reg2;
+				reg2 ^= reg;
+				reg ^= reg2;
+				unused(reg2);
+			} else if(code->whichval == FIXOP) {
+				reg2 = getreg(INTEGER);
+				asmfix(reg, reg2);
+				reg ^= reg2;
+				reg2 ^= reg;
+				reg ^= reg2;
+				unused(reg2);
+			} else if(code->whichval == FUNCALLOP) {
+				//printf("in operator->funcallop\n");fflush(0);
+				lhs = code->operands->link;
+				reg = genarith(lhs);
 
-                          //INCLUDE CHECK TO SEE IF RHS IS A FUNCALL, AND IF SO, SAVE ALL VOLATILE REGISTER
-                          //INCLUDE CHECK TO SEE IF ARGUMENT IS A FUNCALL
+				//dbugprinttok(code);
+				//dbugprinttok(lhs);
+				//dbugprinttok(code->operands);
 
-      case OPERATOR:  if (code->whichval == AREFOP) {
-                        reg = genaref(code, reg1);
-                      } else if (code->whichval == FUNCALLOP){
-                        reg = genfun(code);
-                      } else if (code->whichval == FLOATOP) {
-                          lhs = code->operands;
-                          reg1 = genarith(lhs);
-                          reg = getreg(2);
-                          asmfloat(reg1, reg);
-                          unused(reg1);
-                      } else if (code->whichval == FIXOP) {
-                          lhs = code->operands;
-                          reg1 = genarith(lhs);
-                          reg = getreg(1);
-                          asmfix(reg1, reg);
-                          unused(reg1);
-                      } else if (code->basicdt == INTEGER) {
-                          lhs = code->operands;
-                          rhs = lhs->link;
-                          reg = genarith(lhs);     
-                          if (rhs) {
-                              if (funcallin(rhs)) {
-                                asmsttemp(reg);
-                                unused(reg);
-                                reg1 = genarith(rhs);
-                                asmldtemp(reg);
-                                asmrr(op_to_inst_int[code->whichval], reg1, reg);
-                                unused(reg1);
-                              } else {
-                                reg1 = genarith(rhs);     
-                                asmrr(op_to_inst_int[code->whichval], reg1, reg); 
-                                unused(reg1);
-                              }
-                          } else {
-                            reg1 = getreg(2);
-                            asmfneg(reg, reg1);
-                            reg = reg1;
-                            unused(reg1);
-                          }
-                      } else if (code->basicdt == REAL) {
-                          lhs = code->operands;
-                          rhs = lhs->link;
-                          reg = genarith(lhs);    
-                          if (rhs) { 
-                            if (funcallin(rhs)) {
-                              asmsttemp(reg);
-                              unused(reg);
-                              reg1 = genarith(rhs);
-                              asmldtemp(reg);
-                              asmrr(op_to_inst_real[code->whichval], reg1, reg);
-                              unused(reg1);
-                            } else {
-                              reg1 = genarith(rhs);     
-                              asmrr(op_to_inst_real[code->whichval], reg1, reg);
-                              unused(reg1);
-                            }
-                          } else {
-                            reg1 = getreg(2);
-                            asmfneg(reg, reg1);
-                            reg = reg1;
-                            unused(reg1);
-                          }
-                      } else {
-                        printf("Error");
-                        return -1;
-                      }
-                      break;
-    };
+				if(funcallin(code) && lhs->basicdt == REAL) {
+					//printf("in funcallop->real\n");fflush(0);		//here
+					if(reg != XMM0 && regs[XMM0]) {
+						//printf("in funcallop->real->!xmm0&&regs[xmm0]\n");fflush(0);
+						asmsttemp(XMM0);
+						asmrr(MOVSD, reg, XMM0);
+						asmcall(code->operands->stringval);
+						asmrr(MOVSD, XMM0, reg);
+						asmldtemp(XMM0);
+					} else if(reg != XMM0) {
+						//printf("in funcallop->real->!xmm0\n");fflush(0);
+						asmrr(MOVSD, reg, XMM0);
+						unused(reg);
+						asmcall(code->operands->stringval);
+						regs[XMM0] = 1;
+						reg = XMM0;
+					} else {
+						//printf("in funcallop->real->else\n");fflush(0);
+						asmcall(code->operands->stringval);
+						if(hassaved) {
+							reg2 = getreg(REAL);
+							asmldtemp(reg2);
+							//dbugprinttok(code->operands->link->operands);
+							hassaved = 0;
+						}
+						//dbugprinttok(code->operands);
+						regs[XMM0] = 1;
+						reg = XMM0;
+					}
+				} else {
+					asmcall(code->operands->stringval);
+					asmsttemp(XMM0);
+					unused(XMM0);
+					hassaved=1;
+				}
 
-     return reg;
-  }
+			} else if(code->whichval == AREFOP) {
+				//printf("in operator->aref");fflush(0);
+				off = code->operands->link->intval;
+				switch (code->basicdt) {
+				case INTEGER:
+					reg2 = getreg(INTEGER);
+					asmldr(MOVL, off, reg, reg2, "^.");
+					reg ^= reg2;
+					reg2 ^= reg;
+					reg ^= reg2;
+				break;
+				case REAL:
+					//printf("in operator->aref->real\n");fflush(0);
+					reg2 = getreg(REAL);
+					asmldr(MOVSD, off, reg, reg2, "^.");
+					reg ^= reg2;
+					reg2 ^= reg;
+					reg ^= reg2;
+				break;
+				case POINTER:
+					//printf("in operator->aref->pointer\n");fflush(0);
+					reg2 = getreg(POINTER);
+					asmldr(MOVQ, off, reg, reg2, "^.");
+					reg ^= reg2;
+					reg2 ^= reg;
+					reg ^= reg2;
+				break;
+				}
+			}
+			//printf("end operator\n");fflush(0);
+			if(rhs != NULL && code->whichval != FUNCALLOP && code->whichval != POINTEROP)
+				unused(reg2);
+		break;
+		default:
+			printf("error: nothing happened\n");fflush(0);
+			dbugprinttok(code);
+	};
+	//printf("end genarith %d\n", count);fflush(0);
+	//dbugprinttok(code);
+	//printf("reg: %d\n", reg);
+	return reg;
+}
 
 
 /* Generate code for a Statement from an intermediate-code form */
-void genc(TOKEN code)
-  {  TOKEN tok, lhs, rhs;
-     int reg, offs;
-     SYMBOL sym;
-     clearreg();
+void genc(TOKEN code) {
+	recount2+=1;
+	int count = recount2;
+	//printf("in genc %d\n", count);fflush(0);
+	TOKEN tok, lhs, rhs;
+	int reg, reg2, off;
+	int label1, label2, jmp;
+	SYMBOL s;
+	/*
+	if(DEBUGGEN) {
+		//printf("genc\n");
+		dbugprinttok(code);
+	};
+	*/
+	//printf("1\n");fflush(0);
 
-     if (DEBUGGEN) {
-      printf("genc\n");
-	    dbugprinttok(code);
-     };
+	if(code->tokentype != OPERATOR) {
+		//printf("Bad code token");
+		//dbugprinttok(code);
+	}
+	//printf("2\n");fflush(0);
+	//dbugprinttok(code);
 
-     if ( code->tokentype != OPERATOR ) { 
-          printf("Bad code token");
-      	  dbugprinttok(code);
-      };
 
-     switch ( code->whichval ) {
-      case PROGNOP:  tok = code->operands;
-                	   while ( tok != NULL ) {
-                       genc(tok);
-                		   tok = tok->link;
-                	   }; 
-                	   break;
 
-      case ASSIGNOP: lhs = code->operands;      /* Trivial version: handles I := e */
-                	   rhs = lhs->link;
-                	   reg = genarith(rhs);              /* generate rhs into a register */
-                	   sym = lhs->symentry;              /* assumes lhs is a simple var  */
-                	   offs = sym->offset - stkframesize; /* net offset of the var   */
-                     switch (code->basicdt) {          /* store value into lhs  */
-                       case INTEGER: asmst(MOVL, reg, offs, lhs->stringval);
-                                     break;
-                       case REAL: asmst(MOVSD, reg, offs, lhs->stringval);  
-                                  break;
-                                 /* ...  */
-                     };
-                     break; 
+	switch ( code->whichval ) {
+		case PROGNOP:
+			//printf("in prognop\n");fflush(0);
 
-      case GOTOOP: asmjump(JMP, code->operands->intval);
-                   break;
+			tok = code->operands;
+			while ( tok != NULL ) {
+				genc(tok);
+				tok = tok->link;
+			}
+		break;
+		case ASSIGNOP:
+			lhs = code->operands;
+			//dbugprinttok(lhs);
+			rhs = lhs->link;
+			//printf("5\n");fflush(0);
+			reg = genarith(rhs);
 
-      case LABELOP: asmlabel(code->operands->intval);
-                    break;
+			if(lhs->tokentype == OPERATOR && lhs->whichval == AREFOP && lhs->operands->tokentype != IDENTIFIERTOK) {
+				//printf("in assignop\n");fflush(0);
+				reg2 = genarith(lhs->operands);
+				s = lhs->operands->symentry;
+				off = lhs->operands->link->intval;
+				switch (rhs->basicdt) {
+					case INTEGER:
+						//printf("in genc->assignop->!identifiertok->integer\n");fflush(0);
+						asmstr(MOVL, reg, off, reg2, "^. ");
+					break;
+					case REAL:
+						//printf("in genc->assignop->!identifiertok->real\n");fflush(0);
+						asmstr(MOVSD, reg, off, reg2, "^. ");
+					break;
+					case POINTER:
+						//printf("in genc->assignop->!identifiertok->pointer\n");fflush(0);
+						asmstr(MOVQ,reg, off, reg2, "^. ");
+					break;
+				}
+				if(reg != reg2)
+					unused(reg2);
+			} else if(lhs->tokentype == OPERATOR && lhs->whichval == AREFOP && lhs->operands->tokentype == IDENTIFIERTOK && lhs->operands->link->tokentype != NUMBERTOK){
+				reg2 = genarith(lhs->operands->link);
+				s = lhs->operands->symentry;
+				off = s->offset - stkframesize;
 
-      case IFOP:  tok = code->operands;
-                  reg = genarith(tok);        
-                  lhs = tok->link; //THEN PART
-                  rhs = lhs->link; //ELSE PART
-                  int curr = nextlabel++;
-                  asmjump(ifc_to_jinst[tok->whichval], curr);
-                  if (rhs) 
-                    genc(rhs);
-                  int end = nextlabel++;
-                  asmjump(JMP, end);
-                  asmlabel(curr);
-                  genc(lhs);
-                  asmlabel(end);
-                  break;
+				switch (rhs->basicdt) {
+					case INTEGER:
+						//printf("in genc->assignop->=identifiertok->!=numbertok->integer\n");fflush(0);
+						asmop(CLTQ);
+						asmstrr(MOVL, reg, off, reg2, lhs->operands->stringval);
+					break;
+					case REAL:
+						//printf("in genc->assignop->=identifiertok->!=numbertok->real\n");fflush(0);
+						asmop(CLTQ);
+						asmstrr(MOVSD, reg, off, reg2, lhs->operands->stringval);
+					break;
+					case POINTER:
+						//printf("in genc->assignop->=identifiertok->!=numbertok->pointer\n");fflush(0);
+						asmop(CLTQ);
+						asmstrr(MOVQ,reg, off, reg2, lhs->operands->stringval);
+					break;
+				}
+				if(reg != reg2)
+					unused(reg2);
+			} else if (lhs->tokentype == OPERATOR && lhs->whichval == AREFOP && lhs->operands->tokentype == IDENTIFIERTOK && lhs->operands->link->tokentype == NUMBERTOK) {
+				s = lhs->operands->symentry;
+				off = s->offset - stkframesize + lhs->operands->link->intval;
+				switch (lhs->basicdt) {
+					case INTEGER:
+						//printf("in genc->assignop->=identifiertok->=numbertok->integer\n");fflush(0);
+						asmst(MOVL, reg, off, lhs->stringval);
+					break;
+					case REAL:
+						//printf("in genc->assignop->=identifiertok->=numbertok->real\n");fflush(0);
+						asmst(MOVSD, reg, off, lhs->stringval);
+					break;
+					case POINTER:
+						//printf("in genc->assignop->=identifiertok->=numbertok->pointer\n");fflush(0);
+						asmst(MOVQ,reg, off, lhs->stringval);
+					break;
+				}
+			} else {
+				//printf("1\n");fflush(0);
 
-      case FUNCALLOP: genfun(code);
-                      break;
-	   };
-  }
+				s = lhs->symentry;
+				off = s->offset - stkframesize;
+				if(s->basicdt == REAL) {
+					//printf("in genc->assignop->else->if->real\n");fflush(0);
+					asmst(MOVSD, reg, off, lhs->stringval);
+				} else {
 
-/* Generate code for array references and pointers */
-/* In Pascal, a (^ ...) can only occur as first argument of an aref. */
-/* If storereg < 0, generates a load and returns register number;
-   else, generates a store from storereg. */
-int genaref(TOKEN code, int storereg) {
-  TOKEN base = code->operands;
-  TOKEN offset = base->link;
+					switch (lhs->basicdt) {
+						case INTEGER:
+							//printf("in genc->assignop->else->integer\n");fflush(0);
+							asmst(MOVL, reg, off, lhs->stringval);
+						break;
+						case REAL:
+							//printf("in genc->assignop->else->real\n");fflush(0);
+							asmst(MOVSD, reg, off, lhs->stringval);
+						break;
+						case POINTER:
+							//printf("in genc->assignop->else->pointer\n");fflush(0);
+							asmst(MOVQ,reg, off, lhs->stringval);
+						break;
+					}
+				}
+			}
+			unused(reg);
+		break;
 
-  int reg = genarith(offset);
-  asmop(CLTQ);
+		case LABELOP:
+			asmlabel(code->operands->intval);
+		break;
+
+		case GOTOOP:
+			asmjump(0, code->operands->intval);
+		break;
+
+		case IFOP:
+			//printf("in ifop\n");fflush(0);
+			code = code->operands;
+			lhs = code->operands;
+			rhs = lhs->link;
+			reg = genarith(lhs);
+			reg2 = genarith(rhs);
+
+			switch(lhs->basicdt) {
+				case INTEGER:
+					asmrr(CMPL,reg2,reg);
+				break;
+				case REAL:
+					asmrr(CMPSD,reg2,reg);
+				break;
+				case POINTER:
+					asmrr(CMPQ,reg2,reg);
+				break;
+			}
+
+			unused(reg);
+			unused(reg2);
+
+			label1 = nextlabel++;
+
+			if(code->whichval == EQOP) {
+				jmp = JE;
+			} else if(code->whichval == NEOP) {
+				jmp = JNE;
+			} else if(code->whichval == LTOP) {
+				jmp = JL;
+			} else if(code->whichval == LEOP) {
+				jmp = JLE;
+			} else if(code->whichval == GEOP) {
+				jmp = JGE;
+			} else if(code->whichval == GTOP) {
+				jmp = JG;
+			} else {
+				//printf("error in ifop\n");fflush(0);
+			}
+			asmjump(jmp, label1);
+
+			if(code->link->link != NULL) {
+				genc(code->link->link);
+			}
+			label2 = nextlabel++;
+			asmjump(0, label2);
+
+			asmlabel(label1);
+
+			genc(code->link);
+
+			asmlabel(label2);
+			//printf("end ifop\n");fflush(0);
+		break;
+		case FUNCALLOP:
+			tok = code->operands->link;
+			reg = genarith(tok);
+
+			unused(reg);
+
+			asmcall(code->operands->stringval);
+			//printf("end genc->funcallop\n");
+		break;
+	}
+	//printf("end genc %d\n", count);fflush(0);
 }
-
-/* Generate code for a function call */
-int genfun(TOKEN code) {
-    TOKEN tok = code->operands; //FUNCTION
-    TOKEN lhs = tok->link;  //FIRST ARGUMENT
-    int count = 0;
-    while (lhs) {
-      genarith(lhs);        
-      lhs = lhs->link;
-      count ++;
-    }
-
-    asmcall(tok->stringval);  
-    SYMBOL sym = searchst(tok->stringval);
-
-    if (DEBUGGEN) {
-      printf("genfunc\n");
-      printf("no of arguments: %d", count);
-      dbugprinttok(code);
-    }
-    if (sym->datatype->basicdt == REAL) {
-      return XMM0;
-    } else if (sym->datatype->basicdt == INTEGER) {
-      return EAX;
-    } else {
-      return RAX;
-    }
-}
-
-/* test if there is a function call within code: 1 if true, else 0 */
-int funcallin(TOKEN code) {
-  if (DEBUGGEN) {
-    printf("funcallin\n");
-    dbugprinttok(code);
-  }
-  if (code->whichval == FUNCALLOP) {
-    return 1;
-  } else if (code->link) {
-    return funcallin(code->link);
-  } else {
-    return 0;
-  }
-}
-
-  void clearreg() {
-    for (int i = 0; i < sizeof(registers); i ++) {
-      unused(i);
-    }
-  }
-
-  void unused(int reg) {
-    registers[reg] = 0;
-  }
-
-  void used(int reg){
-    registers[reg] = 1; 
-  }
-
