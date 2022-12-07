@@ -668,7 +668,7 @@ TOKEN makearef(TOKEN var, TOKEN off, TOKEN tok) {
             temp->link = off;
             plusToken->operands = temp;
             var->operands->link = plusToken;
-            var->basicdt = var->symentry->basicdt;
+            var->symtype = var->symentry->datatype;
             return var;
         }
     } 
@@ -676,7 +676,7 @@ TOKEN makearef(TOKEN var, TOKEN off, TOKEN tok) {
     var->link = off;
     arefToken->operands = var;
     arefToken->symentry = var->symentry; 
-    arefToken->basicdt = arefToken->symentry->basicdt; 
+    arefToken->symtype = arefToken->symentry->datatype; 
     if (DEBUG) {
         printf("makearef\n");
     }
@@ -944,7 +944,11 @@ TOKEN makegoto(int label) {
 
 TOKEN makeintc(int num) {
     TOKEN tok = talloc();
-    tok->basicdt = INTEGER;
+    if (num != 0) {
+        tok->basicdt = INTEGER;
+    } else {
+        tok->basicdt = POINTER;
+    }
     tok->intval = num; 
     tok->tokentype = NUMBERTOK;
     return tok;
@@ -1000,6 +1004,6 @@ int main(void)          /*  */
     ppexpr(parseresult);           /* Pretty-print the result tree */
     /* uncomment following to call code generator. */
     
-    gencode(parseresult, blockoffs[blocknumber], labelnumber);
+    /*gencode(parseresult, blockoffs[blocknumber], labelnumber);*/
  
   }
